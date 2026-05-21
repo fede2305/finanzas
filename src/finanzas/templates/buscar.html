@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Buscar · finanzas{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">Buscar gastos</h1>
+
+<div class="card mb-6">
+  <form method="get" action="/buscar" class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+    <div class="md:col-span-2">
+      <label class="block text-xs font-medium text-slate-600 mb-1">Descripción contiene</label>
+      <input type="text" name="q" value="{{ q }}"
+             placeholder="netflix, carrefour, vivi..."
+             class="w-full text-sm rounded-md border border-slate-300 px-3 py-2">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Monto aprox.</label>
+      <input type="text" name="amount" value="{{ amount }}"
+             placeholder="1000 o 18.000"
+             class="w-full text-sm rounded-md border border-slate-300 px-3 py-2">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Tolerancia</label>
+      <select name="tolerance" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
+        {% for t in [5, 10, 20, 50] %}
+          <option value="{{ t }}" {% if tolerance == t %}selected{% endif %}>±{{ t }}%</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Moneda</label>
+      <select name="currency" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
+        <option value="" {% if not currency %}selected{% endif %}>Ambas</option>
+        <option value="ARS" {% if currency == 'ARS' %}selected{% endif %}>ARS</option>
+        <option value="USD" {% if currency == 'USD' %}selected{% endif %}>USD</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Tarjeta</label>
+      <select name="account" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
+        <option value="all" {% if account_param == 'all' %}selected{% endif %}>Todas</option>
+        {% for a in accounts %}
+          <option value="{{ a.id }}" {% if account_param == a.id|string %}selected{% endif %}>
+            {{ a.bank }} ···{{ a.card_last4 }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="md:col-span-6 flex items-center justify-between flex-wrap gap-2">
+      <p class="text-xs text-slate-500">
+        Buscá por uno o ambos campos. El monto se compara con tolerancia (default ±10%).
+        Busca en <b>todos los meses</b>.
+      </p>
+      <button type="submit" class="btn btn-primary text-sm">Buscar</button>
+    </div>
+  </form>
+</div>
+
+{% if has_query %}
+  {% if results %}
+    <div class="card mb-3">
+      <div class="flex items-baseline gap-4 flex-wrap">
+        <div class="text-lg font-semibold">{{ results|length }} resultado{{ 's' if results|length != 1 else '' }}</div>
+        {% if total_ars > 0 %}
+          <div class="text-sm text-slate-600">total: <b>{{ currency_ars(total_ars) }}</b></div>
+        {% endif %}
+        {% if total_usd > 0 %}
+          <div class="text-sm text-slate-600">también <b>{{ currency_usd(total_usd) }}</b></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <table class="w-full text-sm">
+        <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
+          <tr>
+            <th class="text-left py-2 font-medium">Fecha</th>
+            <th class="text-left py-2 font-medium">Descripción</th>
+            <th class="text-left py-2 font-medium">Categoría</th>
+            <th class="text-left py-2 font-medium">Cuenta</th>
+            <th class="text-right py-2 font-medium">Monto</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in results %}
+          {% set is_cuotas = it.installment_total and it.installment_total > 1 %}
+          {% set total_purchase = it.amount * it.installment_total if is_cuotas else 0 %}
+          {% set participants = it.participants or [] %}
+          {% set has_participants = participants|length > 0 %}
+          {% set total_owed = participants|sum(attribute='amount_owed') %}
+          {% set my_amount = it.amount - total_owed %}
+          {% set has_note = it.notes and it.notes.strip() %}
+          <tr id="tx-row-{{ it.id }}" class="border-b border-slate-100 hover:bg-slate-50 align-top">
+            <td class="py-2 text-slate-500 text-xs whitespace-nowrap">{{ it.posted_at[:10] }}</td>
+            <td class="py-2 max-w-md">
+              <div class="truncate" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
+              {% if is_cuotas %}
+                <div class="text-xs text-amber-700 mt-0.5">
+                  📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
+                  · total estimado: {% if it.currency == 'USD' %}{{ currency_usd(total_purchase) }}{% else %}{{ currency_ars(total_purchase) }}{% endif %}
+                </div>
+              {% endif %}
+              {% if has_note %}
+                <div class="text-xs text-slate-600 italic mt-0.5">📝 {{ it.notes }}</div>
+              {% endif %}
+              {% if has_participants %}
+                <div class="mt-1.5 flex flex-wrap gap-1">
+                  {% for p in participants %}
+                    <form method="post" action="/participant/{{ p.id }}/toggle-paid"
+                          hx-post="/participant/{{ p.id }}/toggle-paid"
+                          hx-target="#tx-row-{{ it.id }}"
+                          hx-swap="outerHTML"
+                          class="inline">
+                      <button type="submit"
+                              class="text-xs px-2 py-0.5 rounded-full border transition
+                                     {% if p.paid_back %}bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100
+                                     {% else %}bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100{% endif %}">
+                        {% if p.paid_back %}✓{% else %}⏳{% endif %}
+                        {{ p.person_name }}
+                        <span class="text-[10px] opacity-70">
+                          {% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}
+                        </span>
+                      </button>
+                    </form>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </td>
+            <td class="py-2 text-xs text-slate-500">
+              {{ it.category or '—' }}{% if it.subcategory %} / {{ it.subcategory }}{% endif %}
+            </td>
+            <td class="py-2 text-xs text-slate-500 whitespace-nowrap">{{ it.bank }} ···{{ it.card_last4 }}</td>
+            <td class="py-2 text-right font-medium whitespace-nowrap">
+              {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}
+              {% if has_participants %}
+                <div class="text-xs text-purple-600 font-normal">
+                  tu: {% if it.currency == 'USD' %}{{ currency_usd(my_amount) }}{% else %}{{ currency_ars(my_amount) }}{% endif %}
+                </div>
+              {% endif %}
+            </td>
+            <td class="py-2 text-right whitespace-nowrap">
+              {% include 'partials/tx_actions.html' %}
+            </td>
+          </tr>
+          {% set colspan = 6 %}
+          {% include 'partials/share_form_tr.html' %}
+          {% include 'partials/note_form_tr.html' %}
+          {% include 'partials/cat_form_tr.html' %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card text-center py-8">
+      <p class="text-slate-500">No se encontraron resultados.</p>
+      <p class="text-xs text-slate-400 mt-2">Probá ampliar la tolerancia o cambiar la moneda.</p>
+    </div>
+  {% endif %}
+{% else %}
+  <div class="card text-center py-8 text-slate-400">
+    Ingresá una descripción o un monto para buscar.
+  </div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,51 @@
+{# Editor inline para cambiar categoría de una tx. Args:
+   - it: la transacción (id)
+   - tree: árbol de categorías (lista de roots con .subcategories)
+   - colspan: nro de columnas (default 6) #}
+{% set _cs = colspan|default(6) %}
+{% if tree is defined %}
+<tr id="cat-form-{{ it.id }}" class="hidden bg-blue-50">
+  <td colspan="{{ _cs }}" class="py-3 px-4">
+    <form hx-post="/tx/{{ it.id }}/category"
+          hx-target="#tx-row-{{ it.id }}"
+          hx-swap="outerHTML"
+          hx-on::after-request="window.cleanupRow && window.cleanupRow({{ it.id }})"
+          class="flex items-center gap-2 flex-wrap text-sm">
+      <span class="text-xs text-slate-600 font-medium">Cambiar a:</span>
+      <select name="category_id" required
+              class="text-sm rounded border border-slate-300 px-2 py-1 bg-white"
+              onchange="updateCatSubs{{ it.id }}(this)">
+        <option value="">— Categoría —</option>
+        {% for cat in tree %}
+          {% if cat.name != 'Sin categoría' %}
+            <option value="{{ cat.id }}" data-subs='{{ cat.subcategories | tojson }}'>{{ cat.name }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <select id="cat-sub-{{ it.id }}" name="subcategory_id"
+              class="text-sm rounded border border-slate-300 px-2 py-1 bg-white">
+        <option value="">—</option>
+      </select>
+      <label class="inline-flex items-center gap-1 text-xs text-slate-600 ml-2">
+        <input type="checkbox" name="remember" value="1" class="rounded">
+        recordar para este merchant
+      </label>
+      <div class="ml-auto flex gap-2">
+        <button type="button"
+                class="text-xs text-slate-400 hover:underline"
+                onclick="document.getElementById('cat-form-{{ it.id }}').classList.add('hidden')">cancelar</button>
+        <button type="submit" class="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">guardar</button>
+      </div>
+    </form>
+    <script>
+      window.updateCatSubs{{ it.id }} = function(select) {
+        const opt = select.options[select.selectedIndex];
+        const subs = JSON.parse(opt.getAttribute("data-subs") || "[]");
+        const target = document.getElementById('cat-sub-{{ it.id }}');
+        target.innerHTML = '<option value="">—</option>' +
+          subs.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      };
+    </script>
+  </td>
+</tr>
+{% endif %}

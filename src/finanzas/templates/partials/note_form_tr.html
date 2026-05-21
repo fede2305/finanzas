@@ -1,0 +1,29 @@
+{# Editor inline de nota libre. Args:
+   - it: la transacción (id, notes, installment_total)
+   - colspan: nro de columnas (default 6) #}
+{% set _cs = colspan|default(6) %}
+{% set _is_cuotas = it.installment_total and it.installment_total > 1 %}
+<tr id="note-form-{{ it.id }}" class="hidden bg-amber-50">
+  <td colspan="{{ _cs }}" class="py-3 px-4">
+    <form hx-post="/tx/{{ it.id }}/note"
+          hx-target="#tx-row-{{ it.id }}"
+          hx-swap="outerHTML"
+          hx-on::after-request="window.cleanupRow && window.cleanupRow({{ it.id }})"
+          class="flex items-center gap-2 flex-wrap text-sm">
+      <span class="text-xs text-slate-600 font-medium">📝 Nota:</span>
+      <input type="text" name="note" value="{{ it.notes or '' }}"
+             placeholder="ej: regalo de cumple, pendiente devolución, etc"
+             class="flex-1 text-sm rounded border border-slate-300 px-2 py-1 min-w-[16rem]"
+             maxlength="500">
+      {% if _is_cuotas %}
+        <span class="text-xs text-amber-700">↻ se hereda a próximas cuotas</span>
+      {% endif %}
+      <div class="ml-auto flex gap-2">
+        <button type="button"
+                onclick="document.getElementById('note-form-{{ it.id }}').classList.add('hidden')"
+                class="text-xs text-slate-400 hover:underline">cancelar</button>
+        <button type="submit" class="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700">guardar</button>
+      </div>
+    </form>
+  </td>
+</tr>

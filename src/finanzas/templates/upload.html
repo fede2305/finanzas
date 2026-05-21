@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Subir resumen · finanzas{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">Subir resumen de tarjeta</h1>
+
+<div class="card max-w-2xl">
+  <p class="text-sm text-slate-600 mb-4">
+    Aceptamos PDFs de <b>Santander Río</b> y <b>Galicia</b>, y xlsx de Santander.
+    Si subís el mismo archivo dos veces, no se duplican datos.
+  </p>
+  <form method="post" enctype="multipart/form-data" class="space-y-4">
+    <div>
+      <label class="block text-sm font-medium mb-1">Archivo</label>
+      <input type="file" name="file" accept=".pdf,.xlsx" required
+             class="block w-full text-sm border border-slate-300 rounded-md px-3 py-2 bg-white file:mr-3 file:py-2 file:px-3 file:border-0 file:bg-blue-50 file:text-blue-700 file:font-medium hover:file:bg-blue-100" />
+    </div>
+    <button type="submit" class="btn btn-primary">Subir y parsear</button>
+  </form>
+</div>
+
+{% if result %}
+<div class="card max-w-2xl mt-6 border-l-4
+     {% if result.file_already_imported %}border-amber-400{% else %}border-emerald-500{% endif %}">
+  <h2 class="font-semibold mb-2">Resultado de "{{ filename }}"</h2>
+  {% if result.file_already_imported %}
+    <p class="text-sm text-amber-700">⚠️ Este archivo ya había sido importado antes. No se hizo nada.</p>
+  {% else %}
+    <ul class="text-sm space-y-1">
+      <li>✅ <b>{{ result.new_transactions }}</b> transacciones nuevas</li>
+      <li>🔁 <b>{{ result.duplicate_transactions }}</b> ya estaban (deduplicadas)</li>
+      <li>🤖 <b>{{ result.auto_categorized }}</b> auto-categorizadas por reglas</li>
+      <li>❓ <b>{{ result.uncategorized }}</b> sin categorizar →
+        <a href="/review" class="text-blue-600 underline">ir al review inbox</a></li>
+      {% if result.recurring_groups_detected > 0 %}
+      <li>🔄 <b>{{ result.recurring_groups_detected }}</b> grupos recurrentes detectados</li>
+      {% endif %}
+    </ul>
+    <a href="/" class="btn btn-primary inline-block mt-4 text-sm">Ver dashboard →</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,684 @@
+"""Queries reutilizables para el dashboard y APIs."""
+
+from __future__ import annotations
+
+from calendar import monthrange
+from collections import defaultdict
+from datetime import date, datetime, timedelta
+
+
+def month_bounds(d: date) -> tuple[str, str]:
+    start = d.replace(day=1)
+    days = monthrange(start.year, start.month)[1]
+    next_day = (start + timedelta(days=days))
+    return start.isoformat(), next_day.isoformat()
+
+
+def prev_month(d: date) -> date:
+    if d.month == 1:
+        return date(d.year - 1, 12, 1)
+    return date(d.year, d.month - 1, 1)
+
+
+def add_months(d: date, n: int) -> date:
+    m0 = d.month - 1 + n
+    y = d.year + m0 // 12
+    m = m0 % 12 + 1
+    return date(y, m, 1)
+
+
+def _acc_clause(account_id: int | None) -> tuple[str, list]:
+    """Devuelve (sql_extra, params) para el filtro opcional de account_id."""
+    if account_id is None:
+        return "", []
+    return " AND t.account_id = %s", [account_id]
+
+
+# ----------------- Hero / totals -----------------
+
+
+def total_month(conn, user_id: str, day_of_month: date,
+                currency: str = "ARS",
+                account_id: int | None = None,
+                use_my_share: bool = True,
+                exclude_pagos: bool = True) -> float:
+    start, end = month_bounds(day_of_month)
+    amount_expr = "t.amount * COALESCE(t.my_share_pct, 1.0)" if use_my_share else "t.amount"
+    sql = f"""SELECT COALESCE(SUM({amount_expr}), 0)
+              FROM transactions t
+              JOIN statements st ON st.id = t.statement_id
+              LEFT JOIN categories c ON c.id = t.category_id
+              WHERE st.period_end >= %s AND st.period_end < %s
+                AND t.amount > 0 AND t.currency = %s
+                AND t.user_id = %s"""
+    params: list = [start, end, currency, user_id]
+    if exclude_pagos:
+        sql += " AND (c.name IS NULL OR c.name != 'Pagos/Transferencias')"
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    row = conn.execute(sql, params).fetchone()
+    return float(row[0] or 0)
+
+
+def te_deben_month(conn, user_id: str, day_of_month: date,
+                   currency: str = "ARS",
+                   account_id: int | None = None) -> float:
+    start, end = month_bounds(day_of_month)
+    sql = """SELECT COALESCE(SUM(p.amount_owed), 0)
+             FROM tx_participants p
+             JOIN transactions t ON t.id = p.transaction_id
+             JOIN statements st ON st.id = t.statement_id
+             LEFT JOIN categories c ON c.id = t.category_id
+             WHERE st.period_end >= %s AND st.period_end < %s
+               AND t.currency = %s
+               AND t.user_id = %s
+               AND p.paid_back = 0
+               AND (c.name IS NULL OR c.name != 'Pagos/Transferencias')"""
+    params: list = [start, end, currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    row = conn.execute(sql, params).fetchone()
+    return float(row[0] or 0)
+
+
+def te_pagado_month(conn, user_id: str, day_of_month: date,
+                    currency: str = "ARS",
+                    account_id: int | None = None) -> float:
+    start, end = month_bounds(day_of_month)
+    sql = """SELECT COALESCE(SUM(p.amount_owed), 0)
+             FROM tx_participants p
+             JOIN transactions t ON t.id = p.transaction_id
+             JOIN statements st ON st.id = t.statement_id
+             LEFT JOIN categories c ON c.id = t.category_id
+             WHERE st.period_end >= %s AND st.period_end < %s
+               AND t.currency = %s
+               AND t.user_id = %s
+               AND p.paid_back = 1
+               AND (c.name IS NULL OR c.name != 'Pagos/Transferencias')"""
+    params: list = [start, end, currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    row = conn.execute(sql, params).fetchone()
+    return float(row[0] or 0)
+
+
+def participants_owed_by_person(conn, user_id: str, only_pending: bool = True) -> list[dict]:
+    sql_status = "AND p.paid_back = 0" if only_pending else ""
+    rows = conn.execute(
+        f"""SELECT p.id, p.person_name, p.amount_owed, p.paid_back, p.paid_back_at,
+                   t.id AS tx_id, t.posted_at, t.description_raw, t.amount, t.currency,
+                   a.bank, a.card_last4
+            FROM tx_participants p
+            JOIN transactions t ON t.id = p.transaction_id
+            JOIN accounts a ON a.id = t.account_id
+            WHERE t.user_id = %s {sql_status}
+            ORDER BY LOWER(p.person_name), t.posted_at DESC""",
+        (user_id,),
+    ).fetchall()
+    by_person: dict[str, dict] = {}
+    for r in rows:
+        key = (r["person_name"] or "").strip() or "Alguien"
+        if key not in by_person:
+            by_person[key] = {
+                "person_name": key,
+                "total_owed_pending": 0.0,
+                "total_owed_paid": 0.0,
+                "pending_count": 0,
+                "paid_count": 0,
+                "txs": [],
+            }
+        entry = by_person[key]
+        if r["paid_back"]:
+            entry["total_owed_paid"] += r["amount_owed"]
+            entry["paid_count"] += 1
+        else:
+            entry["total_owed_pending"] += r["amount_owed"]
+            entry["pending_count"] += 1
+        entry["txs"].append(dict(r))
+    return list(by_person.values())
+
+
+def avg_last_3_months(conn, user_id: str, day_of_month: date,
+                      currency: str = "ARS",
+                      account_id: int | None = None) -> float:
+    totals = []
+    for i in range(1, 4):
+        m = add_months(day_of_month.replace(day=1), -i)
+        t = total_month(conn, user_id, m, currency, account_id=account_id)
+        if t > 0:
+            totals.append(t)
+    if not totals:
+        return 0.0
+    return sum(totals) / len(totals)
+
+
+# ----------------- Distribución por categoría -----------------
+
+
+def category_distribution(conn, user_id: str, day_of_month: date,
+                          currency: str = "ARS",
+                          account_id: int | None = None) -> list[tuple[int | None, str, str, float]]:
+    start, end = month_bounds(day_of_month)
+    sql = """SELECT c.id AS cid,
+                    COALESCE(c.name, 'Sin categoría') AS name,
+                    COALESCE(c.color, '#94a3b8') AS color,
+                    SUM(t.amount * COALESCE(t.my_share_pct, 1.0)) AS total
+             FROM transactions t
+             JOIN statements st ON st.id = t.statement_id
+             LEFT JOIN categories c ON c.id = t.category_id
+             WHERE st.period_end >= %s AND st.period_end < %s
+               AND t.amount > 0 AND t.currency = %s
+               AND t.user_id = %s
+               AND (c.name IS NULL OR c.name != 'Pagos/Transferencias')"""
+    params: list = [start, end, currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    sql += " GROUP BY c.id, c.name, c.color ORDER BY total DESC"
+    rows = conn.execute(sql, params).fetchall()
+    return [
+        (r["cid"], r["name"], r["color"], float(r["total"] or 0))
+        for r in rows
+    ]
+
+
+def transactions_in_category(conn, user_id: str, category_id: int | None,
+                             day_of_month: date, currency: str = "ARS",
+                             account_id: int | None = None) -> list[dict]:
+    start, end = month_bounds(day_of_month)
+    base_select = """SELECT t.id, t.posted_at, t.description_raw, t.amount, t.currency,
+                            t.my_share_pct, t.share_with, t.notes,
+                            t.installment_current, t.installment_total,
+                            a.bank, a.card_last4, s.name AS subcategory"""
+    base_join = """FROM transactions t
+                   JOIN accounts a ON a.id = t.account_id
+                   JOIN statements st ON st.id = t.statement_id
+                   LEFT JOIN categories s ON s.id = t.subcategory_id"""
+    base_where = """WHERE st.period_end >= %s AND st.period_end < %s
+                      AND t.amount > 0 AND t.currency = %s
+                      AND t.user_id = %s"""
+    params: list = [start, end, currency, user_id]
+    if category_id is None:
+        base_where += " AND t.category_id IS NULL"
+    else:
+        base_where += """ AND (t.category_id = %s
+                               OR t.category_id IN (SELECT id FROM categories WHERE parent_id = %s AND user_id = %s))"""
+        params += [category_id, category_id, user_id]
+    extra, ep = _acc_clause(account_id)
+    base_where += extra
+    params += ep
+    sql = f"{base_select} {base_join} {base_where} ORDER BY t.amount DESC"
+    rows = conn.execute(sql, params).fetchall()
+    items = [dict(r) for r in rows]
+    if items:
+        ids = [it["id"] for it in items]
+        parts = conn.execute(
+            """SELECT id, transaction_id, person_name, amount_owed, paid_back, paid_back_at
+               FROM tx_participants
+               WHERE transaction_id = ANY(%s)
+               ORDER BY transaction_id, sort_order, id""",
+            (ids,),
+        ).fetchall()
+        by_tx: dict[int, list[dict]] = {}
+        for p in parts:
+            by_tx.setdefault(p["transaction_id"], []).append(dict(p))
+        for it in items:
+            it["participants"] = by_tx.get(it["id"], [])
+    return items
+
+
+# ----------------- Top merchants -----------------
+
+
+def top_categories_compare(conn, user_id: str, day_of_month: date,
+                           currency: str = "ARS",
+                           account_id: int | None = None) -> list[dict]:
+    start, end = month_bounds(day_of_month)
+    prev_start, prev_end = month_bounds(prev_month(day_of_month))
+
+    sql_cur = """SELECT c.id AS cid, c.name, c.color,
+                        SUM(t.amount * COALESCE(t.my_share_pct, 1.0)) AS total,
+                        COUNT(*) AS n
+                 FROM transactions t
+                 JOIN statements st ON st.id = t.statement_id
+                 LEFT JOIN categories c ON c.id = t.category_id
+                 WHERE st.period_end >= %s AND st.period_end < %s
+                   AND t.amount > 0 AND t.currency = %s
+                   AND t.user_id = %s
+                   AND (c.name IS NULL OR c.name != 'Pagos/Transferencias')"""
+    params_cur: list = [start, end, currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql_cur += extra
+    params_cur += ep
+    sql_cur += " GROUP BY c.id, c.name, c.color ORDER BY total DESC"
+    rows_cur = conn.execute(sql_cur, params_cur).fetchall()
+
+    sql_prev = """SELECT c.id AS cid,
+                         SUM(t.amount * COALESCE(t.my_share_pct, 1.0)) AS total
+                  FROM transactions t
+                  JOIN statements st ON st.id = t.statement_id
+                  LEFT JOIN categories c ON c.id = t.category_id
+                  WHERE st.period_end >= %s AND st.period_end < %s
+                    AND t.amount > 0 AND t.currency = %s
+                    AND t.user_id = %s
+                    AND (c.name IS NULL OR c.name != 'Pagos/Transferencias')"""
+    params_prev: list = [prev_start, prev_end, currency, user_id]
+    sql_prev += extra
+    params_prev += ep
+    sql_prev += " GROUP BY c.id"
+    prev_map = {
+        r["cid"]: float(r["total"] or 0)
+        for r in conn.execute(sql_prev, params_prev).fetchall()
+    }
+
+    out = []
+    for r in rows_cur:
+        cur_total = float(r["total"] or 0)
+        prev_total = prev_map.get(r["cid"], 0.0)
+        out.append({
+            "id": r["cid"] if r["cid"] is not None else 0,
+            "name": r["name"] or "Sin categoría",
+            "color": r["color"] or "#94a3b8",
+            "total": cur_total,
+            "count": r["n"],
+            "prev": prev_total,
+            "delta_pct": ((cur_total - prev_total) / prev_total * 100) if prev_total > 0 else None,
+        })
+    return out
+
+
+def top_merchants(conn, user_id: str, day_of_month: date,
+                  currency: str = "ARS", limit: int = 10,
+                  account_id: int | None = None) -> list[dict]:
+    start, end = month_bounds(day_of_month)
+    prev_start, prev_end = month_bounds(prev_month(day_of_month))
+    sql_cur = """SELECT t.description_normalized AS name,
+                        SUM(t.amount * COALESCE(t.my_share_pct, 1.0)) AS total,
+                        COUNT(*) AS n
+                 FROM transactions t
+                 JOIN statements st ON st.id = t.statement_id
+                 LEFT JOIN categories c ON c.id = t.category_id
+                 WHERE st.period_end >= %s AND st.period_end < %s
+                   AND t.amount > 0 AND t.currency = %s
+                   AND t.user_id = %s
+                   AND (c.name IS NULL OR c.name NOT IN ('Pagos/Transferencias', 'Impuestos'))"""
+    params_cur: list = [start, end, currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql_cur += extra
+    params_cur += ep
+    sql_cur += " GROUP BY t.description_normalized ORDER BY total DESC LIMIT %s"
+    params_cur.append(limit)
+    rows_cur = conn.execute(sql_cur, params_cur).fetchall()
+
+    sql_prev = """SELECT t.description_normalized AS name,
+                         SUM(t.amount * COALESCE(t.my_share_pct, 1.0)) AS total
+                  FROM transactions t
+                  JOIN statements st ON st.id = t.statement_id
+                  WHERE st.period_end >= %s AND st.period_end < %s
+                    AND t.amount > 0 AND t.currency = %s
+                    AND t.user_id = %s"""
+    params_prev: list = [prev_start, prev_end, currency, user_id]
+    sql_prev += extra
+    params_prev += ep
+    sql_prev += " GROUP BY t.description_normalized"
+    prev_map = {
+        r["name"]: float(r["total"] or 0)
+        for r in conn.execute(sql_prev, params_prev).fetchall()
+    }
+    out = []
+    for r in rows_cur:
+        cur_total = float(r["total"] or 0)
+        prev_total = prev_map.get(r["name"], 0.0)
+        out.append({
+            "name": (r["name"] or "").strip()[:50],
+            "total": cur_total,
+            "count": r["n"],
+            "prev": prev_total,
+            "delta_pct": ((cur_total - prev_total) / prev_total * 100) if prev_total > 0 else None,
+        })
+    return out
+
+
+# ----------------- Trend 6M -----------------
+
+
+def monthly_trend(conn, user_id: str, anchor: date, months: int = 6,
+                  currency: str = "ARS",
+                  account_id: int | None = None) -> list[tuple[str, float]]:
+    out = []
+    for i in range(months - 1, -1, -1):
+        m = add_months(anchor.replace(day=1), -i)
+        t = total_month(conn, user_id, m, currency, account_id=account_id)
+        out.append((m.strftime("%b'%y"), t))
+    return out
+
+
+# ----------------- Cuotas forecast -----------------
+
+
+def cuotas_pending_detail(conn, user_id: str,
+                          account_id: int | None = None) -> list[dict]:
+    sql = """SELECT t.id, t.posted_at, t.description_raw, t.amount, t.currency,
+                    t.notes,
+                    t.installment_current, t.installment_total,
+                    a.bank, a.card_last4,
+                    c.name AS category, s.name AS subcategory
+             FROM transactions t
+             JOIN accounts a ON a.id = t.account_id
+             LEFT JOIN categories c ON c.id = t.category_id
+             LEFT JOIN categories s ON s.id = t.subcategory_id
+             WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
+               AND t.installment_total > t.installment_current
+               AND t.amount > 0
+               AND t.user_id = %s"""
+    params: list = [user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    sql += " ORDER BY (t.installment_total - t.installment_current) * t.amount DESC"
+    rows = conn.execute(sql, params).fetchall()
+    out = []
+    for r in rows:
+        remaining = r["installment_total"] - r["installment_current"]
+        out.append({
+            **dict(r),
+            "remaining_count": remaining,
+            "remaining_amount": remaining * r["amount"],
+            "total_purchase": r["installment_total"] * r["amount"],
+        })
+    if out:
+        ids = [it["id"] for it in out]
+        parts = conn.execute(
+            """SELECT id, transaction_id, person_name, amount_owed, paid_back, paid_back_at
+               FROM tx_participants
+               WHERE transaction_id = ANY(%s)
+               ORDER BY transaction_id, sort_order, id""",
+            (ids,),
+        ).fetchall()
+        by_tx: dict[int, list[dict]] = {}
+        for p in parts:
+            by_tx.setdefault(p["transaction_id"], []).append(dict(p))
+        for it in out:
+            it["participants"] = by_tx.get(it["id"], [])
+    return out
+
+
+def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
+                         account_id: int | None = None) -> tuple[float, int]:
+    sql = """SELECT SUM(t.amount * (t.installment_total - t.installment_current)) AS total,
+                    COUNT(*) AS n
+             FROM transactions t
+             WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
+               AND t.installment_total > t.installment_current
+               AND t.amount > 0 AND t.currency = %s
+               AND t.user_id = %s"""
+    params: list = [currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    row = conn.execute(sql, params).fetchone()
+    return float(row[0] or 0), int(row[1] or 0)
+
+
+def cuotas_this_month(conn, user_id: str, day_of_month: date,
+                      currency: str = "ARS",
+                      account_id: int | None = None) -> tuple[float, int]:
+    start, end = month_bounds(day_of_month)
+    sql = """SELECT COALESCE(SUM(t.amount), 0) AS s, COUNT(*) AS n
+             FROM transactions t
+             JOIN statements st ON st.id = t.statement_id
+             WHERE st.period_end >= %s AND st.period_end < %s
+               AND t.installment_total IS NOT NULL
+               AND t.amount > 0 AND t.currency = %s
+               AND t.user_id = %s"""
+    params: list = [start, end, currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    row = conn.execute(sql, params).fetchone()
+    return float(row[0] or 0), int(row[1] or 0)
+
+
+def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
+                    currency: str = "ARS",
+                    account_id: int | None = None) -> list[tuple[str, float]]:
+    sql = """SELECT amount, installment_current, installment_total
+             FROM transactions t
+             WHERE installment_total IS NOT NULL AND installment_current IS NOT NULL
+               AND installment_total > installment_current
+               AND amount > 0 AND currency = %s
+               AND user_id = %s"""
+    params: list = [currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    rows = conn.execute(sql, params).fetchall()
+    buckets: dict[str, float] = defaultdict(float)
+    start_month = add_months(anchor.replace(day=1), 1)
+    months_list = [add_months(start_month, i) for i in range(months)]
+    for r in rows:
+        remaining = (r["installment_total"] or 0) - (r["installment_current"] or 0)
+        for i in range(min(remaining, months)):
+            m = months_list[i]
+            buckets[m.strftime("%b'%y")] += r["amount"]
+    return [(m.strftime("%b'%y"), buckets.get(m.strftime("%b'%y"), 0.0)) for m in months_list]
+
+
+# ----------------- Recurring / Fixed -----------------
+
+
+def confirmed_recurring(conn, user_id: str) -> list[dict]:
+    rows = conn.execute(
+        """SELECT g.id, g.normalized_merchant, g.cadence_days, g.occurrences,
+                  g.expected_amount_min, g.expected_amount_max,
+                  c.name AS category, g.last_seen_at
+           FROM recurring_groups g
+           LEFT JOIN categories c ON c.id = g.suggested_category_id
+           WHERE g.status = 'confirmed' AND g.user_id = %s
+           ORDER BY (g.expected_amount_min + g.expected_amount_max) DESC""",
+        (user_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def suggested_recurring(conn, user_id: str) -> list[dict]:
+    rows = conn.execute(
+        """SELECT g.id, g.normalized_merchant, g.cadence_days, g.occurrences,
+                  g.expected_amount_min, g.expected_amount_max,
+                  c.name AS category, g.last_seen_at
+           FROM recurring_groups g
+           LEFT JOIN categories c ON c.id = g.suggested_category_id
+           WHERE g.status = 'suggested' AND g.user_id = %s
+           ORDER BY g.occurrences DESC""",
+        (user_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ----------------- Review inbox -----------------
+
+
+def uncategorized(conn, user_id: str, limit: int = 100) -> list[dict]:
+    rows = conn.execute(
+        """SELECT t.id, t.posted_at, t.description_raw, t.description_normalized,
+                  t.amount, t.currency, t.comprobante,
+                  t.installment_current, t.installment_total,
+                  a.bank, a.card_last4
+           FROM transactions t
+           JOIN accounts a ON a.id = t.account_id
+           WHERE t.category_id IS NULL AND t.user_id = %s
+           ORDER BY t.posted_at DESC, t.id DESC
+           LIMIT %s""",
+        (user_id, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def uncategorized_count(conn, user_id: str) -> int:
+    return conn.execute(
+        "SELECT COUNT(*) FROM transactions WHERE category_id IS NULL AND user_id = %s",
+        (user_id,),
+    ).fetchone()[0]
+
+
+# ----------------- Categorías (jerarquía) -----------------
+
+
+def all_categories(conn, user_id: str) -> dict[int, dict]:
+    rows = conn.execute(
+        "SELECT * FROM categories WHERE user_id = %s ORDER BY parent_id NULLS FIRST, sort_order, name",
+        (user_id,),
+    ).fetchall()
+    return {r["id"]: dict(r) for r in rows}
+
+
+def category_tree(conn, user_id: str) -> list[dict]:
+    cats = all_categories(conn, user_id)
+    roots: list[dict] = []
+    children_of: dict[int, list[dict]] = defaultdict(list)
+    for c in cats.values():
+        if c["parent_id"] is None:
+            roots.append({**c, "subcategories": []})
+        else:
+            children_of[c["parent_id"]].append(dict(c))
+    for r in roots:
+        r["subcategories"] = sorted(children_of.get(r["id"], []), key=lambda x: x["sort_order"])
+    return roots
+
+
+def all_accounts(conn, user_id: str) -> list[dict]:
+    return [dict(r) for r in conn.execute(
+        "SELECT id, bank, card_last4, holder_name, color FROM accounts WHERE user_id = %s ORDER BY id",
+        (user_id,),
+    ).fetchall()]
+
+
+def transactions_in_month(
+    conn, user_id: str, day_of_month: date,
+    currency: str = "ARS", account_id: int | None = None,
+) -> list[dict]:
+    start, end = month_bounds(day_of_month)
+    sql = """SELECT t.id, t.posted_at, t.description_raw, t.amount, t.currency,
+                    t.my_share_pct, t.share_with, t.notes,
+                    t.installment_current, t.installment_total,
+                    a.bank, a.card_last4,
+                    pc.name AS category, s.name AS subcategory
+             FROM transactions t
+             JOIN accounts a ON a.id = t.account_id
+             JOIN statements st ON st.id = t.statement_id
+             LEFT JOIN categories pc ON pc.id = t.category_id
+             LEFT JOIN categories s ON s.id = t.subcategory_id
+             WHERE st.period_end >= %s AND st.period_end < %s
+               AND t.amount > 0 AND t.currency = %s
+               AND t.user_id = %s
+               AND (pc.name IS NULL OR pc.name != 'Pagos/Transferencias')"""
+    params: list = [start, end, currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    sql += " ORDER BY t.amount DESC"
+    rows = conn.execute(sql, params).fetchall()
+    items = [dict(r) for r in rows]
+    if items:
+        ids = [it["id"] for it in items]
+        parts = conn.execute(
+            """SELECT id, transaction_id, person_name, amount_owed, paid_back, paid_back_at
+               FROM tx_participants
+               WHERE transaction_id = ANY(%s)
+               ORDER BY transaction_id, sort_order, id""",
+            (ids,),
+        ).fetchall()
+        by_tx: dict[int, list[dict]] = {}
+        for p in parts:
+            by_tx.setdefault(p["transaction_id"], []).append(dict(p))
+        for it in items:
+            it["participants"] = by_tx.get(it["id"], [])
+    return items
+
+
+def frequent_participants(conn, user_id: str, limit: int = 30) -> list[str]:
+    rows = conn.execute(
+        """SELECT p.person_name, COUNT(*) AS n
+           FROM tx_participants p
+           JOIN transactions t ON t.id = p.transaction_id
+           WHERE TRIM(p.person_name) != '' AND t.user_id = %s
+           GROUP BY p.person_name
+           ORDER BY n DESC, p.person_name ASC
+           LIMIT %s""",
+        (user_id, limit),
+    ).fetchall()
+    return [r["person_name"] for r in rows]
+
+
+def search_transactions(
+    conn,
+    user_id: str,
+    text: str | None = None,
+    amount: float | None = None,
+    tolerance_pct: float = 10.0,
+    currency: str | None = None,
+    account_id: int | None = None,
+    limit: int = 300,
+) -> list[dict]:
+    where = ["t.user_id = %s"]
+    params: list = [user_id]
+    if text:
+        where.append("t.description_raw ILIKE %s")
+        params.append(f"%{text}%")
+    if amount is not None and amount > 0:
+        margin = max(abs(amount) * (tolerance_pct / 100.0), 0.01)
+        where.append("ABS(t.amount) BETWEEN %s AND %s")
+        params.extend([abs(amount) - margin, abs(amount) + margin])
+    if currency:
+        where.append("t.currency = %s")
+        params.append(currency)
+    if account_id:
+        where.append("t.account_id = %s")
+        params.append(account_id)
+    if len(where) == 1:  # solo el user_id filter, sin criterio de búsqueda real
+        return []
+    sql = f"""
+        SELECT t.id, t.posted_at, t.description_raw, t.amount, t.currency,
+               t.my_share_pct, t.share_with, t.notes,
+               t.installment_current, t.installment_total,
+               a.bank, a.card_last4,
+               c.name AS category, s.name AS subcategory
+        FROM transactions t
+        JOIN accounts a ON a.id = t.account_id
+        LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN categories s ON s.id = t.subcategory_id
+        WHERE {' AND '.join(where)}
+        ORDER BY t.posted_at DESC, t.amount DESC
+        LIMIT %s
+    """
+    params.append(limit)
+    rows = conn.execute(sql, params).fetchall()
+    items = [dict(r) for r in rows]
+    if items:
+        ids = [it["id"] for it in items]
+        parts = conn.execute(
+            """SELECT id, transaction_id, person_name, amount_owed, paid_back, paid_back_at
+               FROM tx_participants
+               WHERE transaction_id = ANY(%s)
+               ORDER BY transaction_id, sort_order, id""",
+            (ids,),
+        ).fetchall()
+        by_tx: dict[int, list[dict]] = {}
+        for p in parts:
+            by_tx.setdefault(p["transaction_id"], []).append(dict(p))
+        for it in items:
+            it["participants"] = by_tx.get(it["id"], [])
+    return items
+
+
+def latest_data_anchor(conn, user_id: str) -> date:
+    row = conn.execute(
+        "SELECT MAX(posted_at) AS m FROM transactions WHERE amount > 0 AND user_id = %s",
+        (user_id,),
+    ).fetchone()
+    if row and row["m"]:
+        return datetime.fromisoformat(row["m"]).date().replace(day=1)
+    return date.today().replace(day=1)

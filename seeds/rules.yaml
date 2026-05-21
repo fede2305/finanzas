@@ -1,0 +1,116 @@
+# Reglas seed para auto-categorizar merchants AR comunes.
+# Formato: match_type ∈ {exact, contains, regex}; pattern es case-insensitive.
+# El categorizer prueba en orden: exact > contains > regex. La regla más específica gana.
+# El usuario puede agregar más desde el "review inbox" (esas se guardan en DB con source='learned').
+
+rules:
+  # ============== COMIDA ==============
+  - { match_type: contains, pattern: "carrefour",          category: "Comida", subcategory: "Supermercado" }
+  - { match_type: contains, pattern: "coto",               category: "Comida", subcategory: "Supermercado" }
+  - { match_type: contains, pattern: "dia ",               category: "Comida", subcategory: "Supermercado" }
+  - { match_type: contains, pattern: "jumbo",              category: "Comida", subcategory: "Supermercado" }
+  - { match_type: contains, pattern: "vea",                category: "Comida", subcategory: "Supermercado" }
+  - { match_type: contains, pattern: "supermercado",       category: "Comida", subcategory: "Supermercado" }
+  - { match_type: contains, pattern: "express deheza",     category: "Comida", subcategory: "Supermercado" }
+  - { match_type: contains, pattern: "rappipro",           category: "Suscripciones", subcategory: "Otros" }
+  - { match_type: contains, pattern: "rappi",              category: "Comida", subcategory: "Delivery" }
+  - { match_type: contains, pattern: "pedidosya",          category: "Comida", subcategory: "Delivery" }
+  - { match_type: contains, pattern: "comidaspatio",       category: "Comida", subcategory: "Restaurante" }
+  - { match_type: contains, pattern: "la payada",          category: "Comida", subcategory: "Restaurante" }
+  - { match_type: contains, pattern: "burger",             category: "Comida", subcategory: "Restaurante" }
+  - { match_type: contains, pattern: "lucciano",           category: "Comida", subcategory: "Café/Bar" }
+  - { match_type: contains, pattern: "the kitchen",        category: "Comida", subcategory: "Restaurante" }
+  - { match_type: contains, pattern: "palermo wine",       category: "Comida", subcategory: "Vinería/Bebidas" }
+  - { match_type: contains, pattern: "ambarcafe",          category: "Comida", subcategory: "Café/Bar" }
+  - { match_type: contains, pattern: "donangel",           category: "Comida", subcategory: "Restaurante" }
+
+  # ============== TRANSPORTE (sin auto) ==============
+  - { match_type: contains, pattern: "cabify",             category: "Transporte", subcategory: "Cabify/Uber" }
+  - { match_type: contains, pattern: "uber",               category: "Transporte", subcategory: "Cabify/Uber" }
+  - { match_type: contains, pattern: "didi",               category: "Transporte", subcategory: "Cabify/Uber" }
+  - { match_type: contains, pattern: "sube",               category: "Transporte", subcategory: "SUBE/Transporte público" }
+
+  # ============== AUTO ==============
+  - { match_type: contains, pattern: "appypf",             category: "Auto", subcategory: "Combustible" }
+  - { match_type: contains, pattern: "ypf",                category: "Auto", subcategory: "Combustible" }
+  - { match_type: contains, pattern: "shell",              category: "Auto", subcategory: "Combustible" }
+  - { match_type: contains, pattern: "axion",              category: "Auto", subcategory: "Combustible" }
+  - { match_type: contains, pattern: "puma energy",        category: "Auto", subcategory: "Combustible" }
+  - { match_type: contains, pattern: "autopista",          category: "Auto", subcategory: "Peajes/Autopistas" }
+  - { match_type: contains, pattern: "ausa",               category: "Auto", subcategory: "Peajes/Autopistas" }
+  - { match_type: contains, pattern: "vtv",                category: "Auto", subcategory: "VTV" }
+  - { match_type: contains, pattern: "pat ac",             category: "Auto", subcategory: "Patente" }
+  - { match_type: contains, pattern: "estacionamiento",    category: "Auto", subcategory: "Estacionamiento" }
+  - { match_type: contains, pattern: "lavadero",           category: "Auto", subcategory: "Lavado" }
+
+  # ============== SERVICIOS ==============
+  - { match_type: contains, pattern: "edenor",             category: "Servicios", subcategory: "Luz" }
+  - { match_type: contains, pattern: "edesur",             category: "Servicios", subcategory: "Luz" }
+  - { match_type: contains, pattern: "metrogas",           category: "Servicios", subcategory: "Gas" }
+  - { match_type: contains, pattern: "naturgy",            category: "Servicios", subcategory: "Gas" }
+  - { match_type: contains, pattern: "aysa",               category: "Servicios", subcategory: "Agua" }
+  - { match_type: contains, pattern: "telecentro",         category: "Servicios", subcategory: "Internet/Telefonía" }
+  - { match_type: contains, pattern: "fibertel",           category: "Servicios", subcategory: "Internet/Telefonía" }
+  - { match_type: contains, pattern: "cablevision",        category: "Servicios", subcategory: "Internet/Telefonía" }
+  - { match_type: contains, pattern: "personal",           category: "Servicios", subcategory: "Internet/Telefonía" }
+  - { match_type: contains, pattern: "movistar",           category: "Servicios", subcategory: "Internet/Telefonía" }
+  - { match_type: contains, pattern: "claro ",             category: "Servicios", subcategory: "Internet/Telefonía" }
+  - { match_type: contains, pattern: "telecom",            category: "Servicios", subcategory: "Internet/Telefonía" }
+
+  # ============== SUSCRIPCIONES ==============
+  - { match_type: contains, pattern: "netflix",            category: "Suscripciones", subcategory: "Streaming" }
+  - { match_type: contains, pattern: "spotify",            category: "Suscripciones", subcategory: "Música" }
+  - { match_type: contains, pattern: "tidal",              category: "Suscripciones", subcategory: "Música" }
+  - { match_type: contains, pattern: "apple music",        category: "Suscripciones", subcategory: "Música" }
+  - { match_type: contains, pattern: "youtubep",           category: "Suscripciones", subcategory: "Streaming" }
+  - { match_type: contains, pattern: "youtube premium",    category: "Suscripciones", subcategory: "Streaming" }
+  - { match_type: contains, pattern: "disney",             category: "Suscripciones", subcategory: "Streaming" }
+  - { match_type: contains, pattern: "hbo",                category: "Suscripciones", subcategory: "Streaming" }
+  - { match_type: contains, pattern: "max ",               category: "Suscripciones", subcategory: "Streaming" }
+  - { match_type: contains, pattern: "paramount",          category: "Suscripciones", subcategory: "Streaming" }
+  - { match_type: contains, pattern: "prime video",        category: "Suscripciones", subcategory: "Streaming" }
+  - { match_type: contains, pattern: "adobe",              category: "Suscripciones", subcategory: "Software/SaaS" }
+  - { match_type: contains, pattern: "claude",             category: "Suscripciones", subcategory: "Software/SaaS" }
+  - { match_type: contains, pattern: "openai",             category: "Suscripciones", subcategory: "Software/SaaS" }
+  - { match_type: contains, pattern: "chatgpt",            category: "Suscripciones", subcategory: "Software/SaaS" }
+  - { match_type: contains, pattern: "github",             category: "Suscripciones", subcategory: "Software/SaaS" }
+  - { match_type: contains, pattern: "icloud",             category: "Suscripciones", subcategory: "Software/SaaS" }
+  - { match_type: contains, pattern: "google one",         category: "Suscripciones", subcategory: "Software/SaaS" }
+  - { match_type: contains, pattern: "google storage",     category: "Suscripciones", subcategory: "Software/SaaS" }
+  - { match_type: contains, pattern: "playstation",        category: "Suscripciones", subcategory: "Otros" }
+  - { match_type: contains, pattern: "playstationnetwork", category: "Suscripciones", subcategory: "Otros" }
+  - { match_type: contains, pattern: "xbox",               category: "Suscripciones", subcategory: "Otros" }
+
+  # ============== SALUD ==============
+  - { match_type: contains, pattern: "swiss medical",      category: "Salud", subcategory: "Prepaga" }
+  - { match_type: contains, pattern: "osde",               category: "Salud", subcategory: "Prepaga" }
+  - { match_type: contains, pattern: "galeno",             category: "Salud", subcategory: "Prepaga" }
+  - { match_type: contains, pattern: "medicus",            category: "Salud", subcategory: "Prepaga" }
+  - { match_type: contains, pattern: "omint",              category: "Salud", subcategory: "Prepaga" }
+  - { match_type: contains, pattern: "farmacity",          category: "Salud", subcategory: "Farmacia" }
+  - { match_type: contains, pattern: "farmaplus",          category: "Salud", subcategory: "Farmacia" }
+  - { match_type: contains, pattern: "farmacia",           category: "Salud", subcategory: "Farmacia" }
+
+  # ============== COMPRAS ==============
+  - { match_type: contains, pattern: "mercadolibre",       category: "Compras", subcategory: "Mercado Libre/Online" }
+  - { match_type: contains, pattern: "meli",               category: "Compras", subcategory: "Mercado Libre/Online" }
+  - { match_type: contains, pattern: "amazon",             category: "Compras", subcategory: "Mercado Libre/Online" }
+  - { match_type: contains, pattern: "zara",               category: "Compras", subcategory: "Ropa" }
+  - { match_type: contains, pattern: "h&m",                category: "Compras", subcategory: "Ropa" }
+  - { match_type: contains, pattern: "uniqlo",             category: "Compras", subcategory: "Ropa" }
+  - { match_type: contains, pattern: "decathlon",          category: "Compras", subcategory: "Ropa" }
+
+  # ============== FINANCIERO / SEGUROS ==============
+  - { match_type: contains, pattern: "mapfre",             category: "Financiero", subcategory: "Seguros (vida/hogar)" }
+  - { match_type: contains, pattern: "allianz",            category: "Financiero", subcategory: "Seguros (vida/hogar)" }
+  - { match_type: contains, pattern: "la caja",            category: "Financiero", subcategory: "Seguros (vida/hogar)" }
+  - { match_type: contains, pattern: "sancor seguros",     category: "Financiero", subcategory: "Seguros (vida/hogar)" }
+  - { match_type: contains, pattern: "seg acc person",     category: "Financiero", subcategory: "Seguros (vida/hogar)" }
+  - { match_type: contains, pattern: "seg vida",           category: "Financiero", subcategory: "Seguros (vida/hogar)" }
+
+  # ============== IMPUESTOS / PAGOS (filtros del resumen) ==============
+  - { match_type: contains, pattern: "iibb percep",        category: "Impuestos", subcategory: "Percepciones AFIP/IIBB" }
+  - { match_type: contains, pattern: "iva rg",             category: "Impuestos", subcategory: "IVA" }
+  - { match_type: contains, pattern: "db.rg",              category: "Impuestos", subcategory: "Percepciones AFIP/IIBB" }
+  - { match_type: contains, pattern: "su pago",            category: "Pagos/Transferencias", subcategory: "Pago tarjeta" }
+  - { match_type: contains, pattern: "promo cuenta sueldo",category: "Pagos/Transferencias", subcategory: "Devolución" }

@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: finanzas
+    runtime: python
+    buildCommand: pip install uv && uv sync --no-dev
+    startCommand: uvicorn finanzas.app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+    plan: free
+    region: oregon

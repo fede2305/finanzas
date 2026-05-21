@@ -1,0 +1,159 @@
+# Taxonomía de categorías. Inspirada en Plaid PFC + ajustes AR.
+# Estas son las seed: el usuario puede agregar/editar/borrar las suyas desde la UI.
+# Las seed no se pueden borrar (is_user_created=false) para no romper reglas.
+
+categories:
+  - name: Comida
+    color: "#f97316"
+    icon: utensils
+    subcategories:
+      - Supermercado
+      - Delivery
+      - Restaurante
+      - Café/Bar
+      - Vinería/Bebidas
+
+  - name: Transporte
+    color: "#06b6d4"
+    icon: bus
+    subcategories:
+      - Cabify/Uber
+      - SUBE/Transporte público
+      - Taxis
+      - Aéreos
+      - Mudanza/Flete
+
+  - name: Auto
+    color: "#dc2626"
+    icon: car
+    subcategories:
+      - Service
+      - Mecánico/Repuestos
+      - Accesorios
+      - VTV
+      - Patente
+      - Seguro auto
+      - Combustible
+      - Peajes/Autopistas
+      - Estacionamiento
+      - Lavado
+      - Multas
+
+  - name: Servicios
+    color: "#eab308"
+    icon: zap
+    subcategories:
+      - Luz
+      - Gas
+      - Agua
+      - Internet/Telefonía
+      - Expensas
+      - Alquiler
+      - Mantenimiento hogar
+
+  - name: Suscripciones
+    color: "#a855f7"
+    icon: repeat
+    subcategories:
+      - Streaming
+      - Software/SaaS
+      - Música
+      - Gym/Deportes
+      - Otros
+
+  - name: Salud
+    color: "#22c55e"
+    icon: heart
+    subcategories:
+      - Prepaga
+      - Farmacia
+      - Médico/Estudios
+      - Óptica/Dental
+
+  - name: Entretenimiento
+    color: "#ec4899"
+    icon: gamepad-2
+    subcategories:
+      - Salidas
+      - Cine/Eventos
+      - Hobbies
+      - Juegos/Apps
+
+  - name: Compras
+    color: "#3b82f6"
+    icon: shopping-bag
+    subcategories:
+      - Ropa
+      - Electrónica
+      - Hogar/Muebles
+      - Regalos
+      - Mercado Libre/Online
+
+  - name: Cuidado personal
+    color: "#f43f5e"
+    icon: scissors
+    subcategories:
+      - Peluquería
+      - Cosmética
+      - Spa/Estética
+
+  - name: Viajes
+    color: "#0ea5e9"
+    icon: plane
+    subcategories:
+      - Aéreos
+      - Alojamiento
+      - Comidas en viaje
+      - Excursiones
+
+  - name: Mascotas
+    color: "#84cc16"
+    icon: paw-print
+    subcategories:
+      - Veterinario
+      - Comida y accesorios
+
+  - name: Educación
+    color: "#8b5cf6"
+    icon: graduation-cap
+    subcategories:
+      - Cursos
+      - Libros/Materiales
+
+  - name: Financiero
+    color: "#64748b"
+    icon: piggy-bank
+    subcategories:
+      - Comisiones/Cargos bancarios
+      - Intereses
+      - Seguros (vida/hogar)
+      - Inversiones
+
+  - name: Impuestos
+    color: "#475569"
+    icon: receipt
+    subcategories:
+      - Percepciones AFIP/IIBB
+      - IVA
+      - Otros
+
+  - name: Trabajo
+    color: "#0891b2"
+    icon: briefcase
+    subcategories:
+      - Insumos
+      - Coworking
+      - Otros
+
+  - name: Pagos/Transferencias
+    color: "#94a3b8"
+    icon: arrow-left-right
+    subcategories:
+      - Pago tarjeta
+      - Transferencia salida
+      - Devolución
+
+  - name: Sin categoría
+    color: "#e5e7eb"
+    icon: help-circle
+    subcategories: []
