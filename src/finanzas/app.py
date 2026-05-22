@@ -6,6 +6,7 @@ import csv
 import io
 import os
 import re
+import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from datetime import date, datetime
@@ -321,10 +322,11 @@ async def upload_api(request: Request, files: list[UploadFile] = File(...)):
 
             tmp_path = upload_dir / file.filename
 
-            # Write directly to disk in chunks, no buffering
-            with open(tmp_path, "wb") as out:
-                while chunk := await file.read(8192):
+            # Write directly to disk in larger chunks, flush aggressively
+            with open(tmp_path, "wb", buffering=8192) as out:
+                while chunk := await file.read(65536):  # 64KB chunks
                     out.write(chunk)
+                    out.flush()
 
             files_data.append({"filename": file.filename, "tmp_path": str(tmp_path)})
 
@@ -345,7 +347,6 @@ async def upload_api(request: Request, files: list[UploadFile] = File(...)):
         return JSONResponse({"job_id": job_id})
 
     except Exception as e:
-        import shutil
         shutil.rmtree(upload_dir, ignore_errors=True)
         raise
 
