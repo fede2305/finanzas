@@ -163,6 +163,15 @@ def logout(request: Request):
     return RedirectResponse(url="/login", status_code=302)
 
 
+@app.get("/me")
+def me(request: Request):
+    from fastapi.responses import JSONResponse
+    user = auth.require_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    return JSONResponse(user)
+
+
 # --------------------- Dashboard ---------------------
 
 @app.get("/", response_class=HTMLResponse)
