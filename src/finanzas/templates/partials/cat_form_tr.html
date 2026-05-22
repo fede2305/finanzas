@@ -13,7 +13,7 @@
           class="flex items-center gap-2 flex-wrap text-sm">
       <span class="text-xs text-slate-600 dark:text-slate-300 font-medium">Cambiar a:</span>
       <select name="category_id" required
-              class="text-sm rounded border border-slate-300 px-2 py-1 bg-white"
+              class="text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 bg-white dark:bg-slate-800 dark:text-slate-100"
               onchange="updateCatSubs{{ it.id }}(this)">
         <option value="">— Categoría —</option>
         {% for cat in tree %}
@@ -23,7 +23,7 @@
         {% endfor %}
       </select>
       <select id="cat-sub-{{ it.id }}" name="subcategory_id"
-              class="text-sm rounded border border-slate-300 px-2 py-1 bg-white">
+              class="text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 bg-white dark:bg-slate-800 dark:text-slate-100">
         <option value="">—</option>
       </select>
       <label class="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 ml-2">

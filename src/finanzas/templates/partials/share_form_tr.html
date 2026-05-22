@@ -16,7 +16,7 @@
         <span class="font-medium text-slate-700 dark:text-slate-200">Dividir entre:</span>
         {% for n in [2,3,4,5,6,7,8] %}
           <button type="button"
-                  class="px-2 py-0.5 text-xs rounded border border-slate-300 bg-white hover:bg-blue-50"
+                  class="px-2 py-0.5 text-xs rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 dark:text-slate-200"
                   onclick="splitFor{{ it.id }}({{ n }})">{{ n }}</button>
         {% endfor %}
         <span class="text-slate-500 dark:text-slate-400">personas</span>
@@ -32,31 +32,31 @@
         <span class="text-slate-500 dark:text-slate-400">Personas frecuentes:</span>
         {% for name in frequent_people %}
           <button type="button"
-                  class="px-2 py-0.5 rounded-full border border-slate-300 bg-slate-50 hover:bg-blue-50 text-slate-700 dark:text-slate-200"
+                  class="px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200"
                   onclick="addPersonByName{{ it.id }}('{{ name | e }}')">+ {{ name }}</button>
         {% endfor %}
       </div>
       {% endif %}
       <div id="participants-{{ it.id }}" class="space-y-1.5">
         {# Fila Yo (siempre visible, auto-calculada — no se envía al backend) #}
-        <div class="self-row flex items-center gap-2 bg-blue-50 rounded px-2 py-1.5 border-l-4 border-blue-400">
-          <span class="flex-1 text-sm font-semibold text-blue-700">Yo</span>
+        <div class="self-row flex items-center gap-2 bg-blue-50 dark:bg-blue-950/50 rounded px-2 py-1.5 border-l-4 border-blue-400 dark:border-blue-600">
+          <span class="flex-1 text-sm font-semibold text-blue-700 dark:text-blue-300">Yo</span>
           <input type="text" id="self-amount-{{ it.id }}"
                  value="{{ '%.2f' % _my }}"
-                 class="w-28 text-sm rounded border border-blue-200 px-2 py-1 bg-white text-blue-800 font-medium"
+                 class="w-28 text-sm rounded border border-blue-200 dark:border-blue-700 px-2 py-1 bg-white dark:bg-slate-800 text-blue-800 dark:text-blue-300 font-medium"
                  readonly tabindex="-1">
-          <span class="text-xs text-blue-600 italic whitespace-nowrap">tu parte (auto)</span>
+          <span class="text-xs text-blue-600 dark:text-blue-400 italic whitespace-nowrap">tu parte (auto)</span>
           <span class="w-4"></span>
         </div>
         {% for p in _participants %}
           <div class="flex items-center gap-2 part-row">
             <input type="text" name="participant_name" value="{{ p.person_name }}"
                    list="frequent-people-{{ it.id }}"
-                   class="flex-1 text-sm rounded border border-slate-300 px-2 py-1" placeholder="Nombre">
+                   class="flex-1 text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 dark:bg-slate-800 dark:text-slate-100" placeholder="Nombre">
             <input type="number" step="0.01" name="participant_amount"
                    value="{{ '%.2f' % p.amount_owed }}"
                    oninput="updateSelf{{ it.id }}()"
-                   class="w-28 text-sm rounded border border-slate-300 px-2 py-1" placeholder="0.00">
+                   class="w-28 text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 dark:bg-slate-800 dark:text-slate-100" placeholder="0.00">
             <label class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
               <input type="hidden" name="participant_paid" value="0">
               <input type="checkbox" name="participant_paid"
@@ -101,10 +101,10 @@
             <div class="flex items-center gap-2 part-row">
               <input type="text" name="participant_name" value="${name || ''}"
                      list="frequent-people-{{ it.id }}"
-                     class="flex-1 text-sm rounded border border-slate-300 px-2 py-1" placeholder="Nombre">
+                     class="flex-1 text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 dark:bg-slate-800 dark:text-slate-100" placeholder="Nombre">
               <input type="number" step="0.01" name="participant_amount" value="${amount.toFixed(2)}"
                      oninput="updateSelf{{ it.id }}()"
-                     class="w-28 text-sm rounded border border-slate-300 px-2 py-1" placeholder="0.00">
+                     class="w-28 text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 dark:bg-slate-800 dark:text-slate-100" placeholder="0.00">
               <label class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
                 <input type="hidden" name="participant_paid" value="0">
                 <input type="checkbox" name="participant_paid" value="1" ${paid ? 'checked' : ''}

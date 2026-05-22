@@ -7,7 +7,7 @@
   <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Cuotas</h1>
   <div class="flex items-center gap-2 flex-wrap">
     <form method="get" action="/cuotas" class="inline-flex items-center gap-2">
-      <label class="text-sm text-slate-500">Tarjeta:</label>
+      <label class="text-sm text-slate-500 dark:text-slate-400">Tarjeta:</label>
       <select name="account" onchange="this.form.submit()"
               class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
         <option value="all" {% if account_param == "all" %}selected{% endif %}>Todas</option>
@@ -89,7 +89,7 @@
                       class="inline">
                   <button type="submit"
                           class="text-xs px-2 py-0.5 rounded-full border transition
-                                 {% if p.paid_back %}bg-emerald-50 border-emerald-300 text-emerald-700{% else %}bg-amber-50 border-amber-300 text-amber-700{% endif %}">
+                                 {% if p.paid_back %}bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300{% else %}bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300{% endif %}">
                     {% if p.paid_back %}✓{% else %}⏳{% endif %}
                     {{ p.person_name }}
                     <span class="text-[10px] opacity-70">{% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}</span>
@@ -120,13 +120,13 @@
         <td class="py-2 text-right font-medium whitespace-nowrap">
           {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}
           {% if has_participants %}
-            <div class="text-xs text-purple-600 font-normal">tu: {% if it.currency == 'USD' %}{{ currency_usd(my_amount) }}{% else %}{{ currency_ars(my_amount) }}{% endif %}</div>
+            <div class="text-xs text-purple-600 dark:text-purple-400 font-normal">tu: {% if it.currency == 'USD' %}{{ currency_usd(my_amount) }}{% else %}{{ currency_ars(my_amount) }}{% endif %}</div>
           {% endif %}
-          <div class="text-xs text-purple-700 font-normal md:hidden">
+          <div class="text-xs text-purple-700 dark:text-purple-400 font-normal md:hidden">
             rest: {% if it.currency == 'USD' %}{{ currency_usd(it.remaining_amount) }}{% else %}{{ currency_ars(it.remaining_amount) }}{% endif %}
           </div>
         </td>
-        <td class="py-2 text-right font-medium whitespace-nowrap text-purple-700 hidden md:table-cell">
+        <td class="py-2 text-right font-medium whitespace-nowrap text-purple-700 dark:text-purple-400 hidden md:table-cell">
           {% if it.currency == 'USD' %}{{ currency_usd(it.remaining_amount) }}{% else %}{{ currency_ars(it.remaining_amount) }}{% endif %}
           <div class="text-xs text-slate-400 font-normal">{{ it.remaining_count }} cuota{{ 's' if it.remaining_count != 1 else '' }}</div>
         </td>

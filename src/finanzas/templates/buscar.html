@@ -20,7 +20,7 @@
     </div>
     <div>
       <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tolerancia</label>
-      <select name="tolerance" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
+      <select name="tolerance" class="w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 bg-white dark:bg-slate-800 dark:text-slate-100">
         {% for t in [5, 10, 20, 50] %}
           <option value="{{ t }}" {% if tolerance == t %}selected{% endif %}>±{{ t }}%</option>
         {% endfor %}
@@ -28,7 +28,7 @@
     </div>
     <div>
       <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Moneda</label>
-      <select name="currency" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
+      <select name="currency" class="w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 bg-white dark:bg-slate-800 dark:text-slate-100">
         <option value="" {% if not currency %}selected{% endif %}>Ambas</option>
         <option value="ARS" {% if currency == 'ARS' %}selected{% endif %}>ARS</option>
         <option value="USD" {% if currency == 'USD' %}selected{% endif %}>USD</option>
@@ -36,7 +36,7 @@
     </div>
     <div>
       <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tarjeta</label>
-      <select name="account" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
+      <select name="account" class="w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 bg-white dark:bg-slate-800 dark:text-slate-100">
         <option value="all" {% if account_param == 'all' %}selected{% endif %}>Todas</option>
         {% for a in accounts %}
           <option value="{{ a.id }}" {% if account_param == a.id|string %}selected{% endif %}>
@@ -58,10 +58,10 @@
       <div class="flex items-baseline gap-4 flex-wrap">
         <div class="text-lg font-semibold">{{ results|length }} resultado{{ 's' if results|length != 1 else '' }}</div>
         {% if total_ars > 0 %}
-          <div class="text-sm text-slate-600">total: <b>{{ currency_ars(total_ars) }}</b></div>
+          <div class="text-sm text-slate-600 dark:text-slate-300">total: <b>{{ currency_ars(total_ars) }}</b></div>
         {% endif %}
         {% if total_usd > 0 %}
-          <div class="text-sm text-slate-600">también <b>{{ currency_usd(total_usd) }}</b></div>
+          <div class="text-sm text-slate-600 dark:text-slate-300">también <b>{{ currency_usd(total_usd) }}</b></div>
         {% endif %}
       </div>
     </div>
@@ -93,7 +93,7 @@
               <div class="text-xs text-slate-400 md:hidden">{{ it.posted_at[:10] }} · {{ it.category or '—' }} · {{ it.bank }} ···{{ it.card_last4 }}</div>
               <div class="break-words font-medium" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
               {% if is_cuotas %}
-                <div class="text-xs text-amber-700 mt-0.5">
+                <div class="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                   📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
                   · total: {% if it.currency == 'USD' %}{{ currency_usd(total_purchase) }}{% else %}{{ currency_ars(total_purchase) }}{% endif %}
                 </div>
@@ -111,7 +111,7 @@
                           class="inline">
                       <button type="submit"
                               class="text-xs px-2 py-0.5 rounded-full border transition
-                                     {% if p.paid_back %}bg-emerald-50 border-emerald-300 text-emerald-700{% else %}bg-amber-50 border-amber-300 text-amber-700{% endif %}">
+                                     {% if p.paid_back %}bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300{% else %}bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300{% endif %}">
                         {% if p.paid_back %}✓{% else %}⏳{% endif %}
                         {{ p.person_name }}
                         <span class="text-[10px] opacity-70">{% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}</span>
