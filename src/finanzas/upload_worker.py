@@ -12,6 +12,7 @@ from finanzas import db, ingest
 def process_upload_job(conn, job_id: int) -> None:
     """Procesa un job de upload: itera archivos guardados y llama a ingest."""
     import shutil
+    from finanzas import db
 
     job = conn.execute(
         "SELECT id, user_id, results FROM upload_jobs WHERE id = %s",
@@ -53,11 +54,12 @@ def process_upload_job(conn, job_id: int) -> None:
             except Exception as e:
                 results.append({"filename": filename, "status": "error", "message": str(e)})
 
-            # Update progress
-            conn.execute(
-                "UPDATE upload_jobs SET progress_current = %s WHERE id = %s",
-                (idx + 1, job_id),
-            )
+            # Update progress in separate transaction (separate connection to commit immediately)
+            with db.connect() as progress_conn:
+                progress_conn.execute(
+                    "UPDATE upload_jobs SET progress_current = %s WHERE id = %s",
+                    (idx + 1, job_id),
+                )
 
     finally:
         # Cleanup upload directory
