@@ -150,7 +150,9 @@ _V1_SQL = """
     );
 
     CREATE INDEX IF NOT EXISTS idx_tx_part_tx ON tx_participants(transaction_id);
+"""
 
+_V2_SQL = """
     CREATE TABLE IF NOT EXISTS upload_jobs (
         id BIGSERIAL PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -167,7 +169,7 @@ _V1_SQL = """
     CREATE INDEX IF NOT EXISTS idx_upload_user_status ON upload_jobs(user_id, status);
 """
 
-MIGRATIONS: list[str] = [_V1_SQL]
+MIGRATIONS: list[str] = [_V1_SQL, _V2_SQL]
 
 
 class _PgConn:
