@@ -11,23 +11,23 @@
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">Fecha</label>
         <input type="date" name="posted_at" required
-               class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5">
+               class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
         <input type="text" name="description" required
-               class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5"
+               class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600"
                placeholder="Ej: Alquiler de mayo">
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="block text-xs font-medium text-slate-600 mb-1">Monto</label>
           <input type="number" step="0.01" name="amount" required
-                 class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5">
+                 class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-600 mb-1">Moneda</label>
-          <select name="currency" class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white">
+          <select name="currency" class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
             <option value="ARS">ARS</option>
             <option value="USD">USD</option>
           </select>
@@ -36,7 +36,7 @@
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">Categoría</label>
         <select name="category_id" required id="manual-cat"
-                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white"
+                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600"
                 onchange="updateManualSubs()">
           <option value="">— Elegí —</option>
           {% for cat in tree %}
@@ -49,7 +49,7 @@
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">Subcategoría</label>
         <select name="subcategory_id" id="manual-sub"
-                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white">
+                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
           <option value="">—</option>
         </select>
       </div>
@@ -64,11 +64,7 @@
           <label class="block text-xs font-medium text-slate-600 mb-1">Recurrencia (rrule)</label>
           <input type="text" name="recurrence_rule"
                  value="FREQ=MONTHLY;BYMONTHDAY=1"
-                 class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5"
-                 placeholder="FREQ=MONTHLY;BYMONTHDAY=1">
-          <p class="text-xs text-slate-400 mt-1">
-            Default: mensual el día 1. Cambiá según tu caso (ej: <code>FREQ=WEEKLY</code>).
-          </p>
+                 class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
         </div>
       </div>
       <button type="submit" class="btn btn-primary w-full">Guardar</button>
@@ -78,30 +74,32 @@
   <div class="card lg:col-span-2">
     <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cargados ({{ items|length }})</h2>
     {% if items %}
-    <div class="overflow-x-auto">
-    <table class="w-full text-sm min-w-[500px]">
-      <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
+    <table class="w-full text-sm">
+      <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
         <tr>
           <th class="text-left py-2 font-medium">Fecha</th>
           <th class="text-left py-2 font-medium">Descripción</th>
-          <th class="text-left py-2 font-medium">Categoría</th>
+          <th class="text-left py-2 font-medium hidden md:table-cell">Categoría</th>
           <th class="text-right py-2 font-medium">Monto</th>
-          <th class="text-left py-2 font-medium">Fijo</th>
+          <th class="text-left py-2 font-medium hidden md:table-cell">Fijo</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
       {% for m in items %}
-        <tr class="border-b border-slate-100">
+        <tr class="border-b border-slate-100 dark:border-slate-700">
           <td class="py-2 text-slate-500 text-xs whitespace-nowrap">{{ m.posted_at }}</td>
-          <td class="py-2">{{ m.description }}</td>
-          <td class="py-2 text-xs">
+          <td class="py-2">
+            <div class="truncate">{{ m.description }}</div>
+            <div class="text-xs text-slate-400 md:hidden">{{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}{% if m.is_fixed %} · fijo{% endif %}</div>
+          </td>
+          <td class="py-2 text-xs hidden md:table-cell">
             {{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}
           </td>
           <td class="py-2 text-right font-medium whitespace-nowrap">
             {% if m.currency == 'USD' %}{{ currency_usd(m.amount) }}{% else %}{{ currency_ars(m.amount) }}{% endif %}
           </td>
-          <td class="py-2 text-xs">
+          <td class="py-2 text-xs hidden md:table-cell">
             {% if m.is_fixed %}<span class="chip bg-blue-50 text-blue-700">fijo</span>{% endif %}
           </td>
           <td class="py-2 text-right">
@@ -114,7 +112,6 @@
       {% endfor %}
       </tbody>
     </table>
-    </div>
     {% else %}
       <p class="text-slate-400 text-sm">Todavía no cargaste gastos manuales.</p>
     {% endif %}

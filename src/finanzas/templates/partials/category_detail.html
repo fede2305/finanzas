@@ -1,31 +1,33 @@
 <div class="card mb-6 border-l-4" style="border-color: {{ category_color }};">
   <div class="flex items-center justify-between mb-3">
-    <div class="flex items-center gap-3">
-      <span class="w-3 h-3 rounded-full" style="background: {{ category_color }};"></span>
-      <h2 class="text-lg font-semibold">{{ category_name }}</h2>
-      <span class="text-sm text-slate-500">
-        Pagado: {{ currency_ars(total_ars_pagado) }}{% if total_usd_pagado > 0 %} · {{ currency_usd(total_usd_pagado) }}{% endif %}
-        {% if total_ars_mio != total_ars_pagado or total_usd_mio != total_usd_pagado %}
-          · <span class="text-purple-700 font-medium">Tu parte: {{ currency_ars(total_ars_mio) }}{% if total_usd_mio > 0 %} · {{ currency_usd(total_usd_mio) }}{% endif %}</span>
-        {% endif %}
-        · {{ (items|length + items_usd|length) }} txs
-      </span>
+    <div class="flex items-center gap-3 min-w-0">
+      <span class="w-3 h-3 rounded-full flex-shrink-0" style="background: {{ category_color }};"></span>
+      <div class="min-w-0">
+        <h2 class="text-base font-semibold truncate">{{ category_name }}</h2>
+        <div class="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-3">
+          <span>Pagado: {{ currency_ars(total_ars_pagado) }}{% if total_usd_pagado > 0 %} · {{ currency_usd(total_usd_pagado) }}{% endif %}</span>
+          {% if total_ars_mio != total_ars_pagado or total_usd_mio != total_usd_pagado %}
+            <span class="text-purple-700 font-medium">Tu parte: {{ currency_ars(total_ars_mio) }}{% if total_usd_mio > 0 %} · {{ currency_usd(total_usd_mio) }}{% endif %}</span>
+          {% endif %}
+          <span>{{ (items|length + items_usd|length) }} txs</span>
+        </div>
+      </div>
     </div>
     {% if show_close %}
     <button onclick="window.loadAllTransactionsOfMonth && window.loadAllTransactionsOfMonth()"
-            class="text-slate-400 hover:text-slate-700 text-sm">✕ todos</button>
+            class="text-slate-400 hover:text-slate-700 text-sm flex-shrink-0 ml-2">✕ todos</button>
     {% endif %}
   </div>
 
   {% if items or items_usd %}
   <div class="overflow-x-auto">
-  <table class="w-full text-sm min-w-[550px]">
-    <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
-      <tr>
-        <th class="text-left py-2 font-medium">Fecha</th>
+  <table class="w-full text-sm">
+    <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
+      <tr class="border-b border-slate-200 dark:border-slate-700">
+        <th class="text-left py-2 font-medium hidden md:table-cell">Fecha</th>
         <th class="text-left py-2 font-medium">Descripción</th>
-        <th class="text-left py-2 font-medium">Subcategoría</th>
-        <th class="text-left py-2 font-medium">Cuenta</th>
+        <th class="text-left py-2 font-medium hidden md:table-cell">Subcategoría</th>
+        <th class="text-left py-2 font-medium hidden md:table-cell">Cuenta</th>
         <th class="text-right py-2 font-medium">Monto</th>
         <th></th>
       </tr>

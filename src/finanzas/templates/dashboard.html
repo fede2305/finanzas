@@ -7,7 +7,7 @@
   <form method="get" action="/" class="flex items-center gap-2 flex-wrap">
     <label class="text-sm text-slate-500">Tarjeta:</label>
     <select name="account" onchange="this.form.submit()"
-            class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white">
+            class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
       <option value="all" {% if account_param == "all" %}selected{% endif %}>Todas</option>
       {% for a in accounts %}
         <option value="{{ a.id }}" {% if account_param == a.id|string %}selected{% endif %}>
@@ -17,7 +17,7 @@
     </select>
     <label class="text-sm text-slate-500 ml-3">Mes:</label>
     <select name="month" onchange="this.form.submit()"
-            class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white">
+            class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
       {% for val, label in month_options %}
         <option value="{{ val }}" {% if val == month_iso %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
@@ -184,7 +184,7 @@
     {% if merchants %}
     <div class="overflow-x-auto">
     <table class="w-full text-sm min-w-[400px]">
-      <thead class="text-slate-500 text-xs uppercase border-b border-slate-200">
+      <thead class="text-slate-500 text-xs uppercase border-b border-slate-200 dark:border-slate-700">
         <tr>
           <th class="text-left py-2 font-medium">Categoría</th>
           <th class="text-right py-2 font-medium">Este mes</th>
@@ -194,7 +194,7 @@
       </thead>
       <tbody>
       {% for m in merchants %}
-        <tr class="border-b border-slate-100">
+        <tr class="border-b border-slate-100 dark:border-slate-700">
           <td class="py-2 flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background: {{ m.color }};"></span>
             <span>{{ m.name }}</span>

@@ -15,17 +15,15 @@
 {% else %}
 <div class="card">
   <p class="text-xs text-slate-500 mb-3">
-    Asigná una categoría a cada fila. El checkbox <b>"Recordar"</b> guarda una regla
-    para que el próximo merchant igual se categorice solo.
+    Asigná una categoría a cada fila. El checkbox <b>"Recordar"</b> guarda una regla automática.
   </p>
-  <div class="overflow-x-auto">
-  <table class="w-full text-sm min-w-[700px]">
-    <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
+  <table class="w-full text-sm">
+    <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
       <tr>
-        <th class="text-left py-2 font-medium">Fecha</th>
+        <th class="text-left py-2 font-medium hidden md:table-cell">Fecha</th>
         <th class="text-left py-2 font-medium">Descripción</th>
         <th class="text-right py-2 font-medium">Monto</th>
-        <th class="text-left py-2 font-medium">Cuenta</th>
+        <th class="text-left py-2 font-medium hidden md:table-cell">Cuenta</th>
         <th class="text-left py-2 font-medium" colspan="3">Categoría</th>
       </tr>
     </thead>
@@ -33,31 +31,22 @@
       {% for it in items %}
       {% set is_cuotas = it.installment_total and it.installment_total > 1 %}
       {% set total_estimado = it.amount * it.installment_total if is_cuotas else 0 %}
-      <tr id="tx-{{ it.id }}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
-        <td class="py-2 text-slate-500 text-xs whitespace-nowrap">{{ it.posted_at[:10] }}</td>
-        <td class="py-2 max-w-xs">
+      <tr id="tx-{{ it.id }}" class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 align-middle">
+        <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">{{ it.posted_at[:10] }}</td>
+        <td class="py-2">
+          <div class="text-xs text-slate-400 md:hidden">{{ it.posted_at[:10] }} · ···{{ it.card_last4 }}</div>
           <div class="truncate" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
           {% if is_cuotas %}
             <div class="text-xs text-amber-700 mt-0.5">
               📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
-              · total estimado:
-              {% if it.currency == 'USD' %}{{ currency_usd(total_estimado) }}{% else %}{{ currency_ars(total_estimado) }}{% endif %}
+              · total: {% if it.currency == 'USD' %}{{ currency_usd(total_estimado) }}{% else %}{{ currency_ars(total_estimado) }}{% endif %}
             </div>
           {% endif %}
         </td>
         <td class="py-2 text-right font-medium whitespace-nowrap">
-          {% if it.currency == 'USD' %}
-            {{ currency_usd(it.amount) }}
-          {% else %}
-            {{ currency_ars(it.amount) }}
-          {% endif %}
-          {% if is_cuotas %}
-            <div class="text-xs text-slate-400 font-normal">
-              ({{ it.installment_current }}/{{ it.installment_total }})
-            </div>
-          {% endif %}
+          {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}
         </td>
-        <td class="py-2 text-slate-500 text-xs whitespace-nowrap">···{{ it.card_last4 }}</td>
+        <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">···{{ it.card_last4 }}</td>
         <td class="py-2" colspan="3">
           <form hx-post="/review/{{ it.id }}"
                 hx-target="#tx-{{ it.id }}"
@@ -88,7 +77,6 @@
       {% endfor %}
     </tbody>
   </table>
-  </div>
 </div>
 
 <script>

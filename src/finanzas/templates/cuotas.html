@@ -9,7 +9,7 @@
     <form method="get" action="/cuotas" class="inline-flex items-center gap-2">
       <label class="text-sm text-slate-500">Tarjeta:</label>
       <select name="account" onchange="this.form.submit()"
-              class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white">
+              class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
         <option value="all" {% if account_param == "all" %}selected{% endif %}>Todas</option>
         {% for a in accounts %}
           <option value="{{ a.id }}" {% if account_param == a.id|string %}selected{% endif %}>
@@ -19,11 +19,10 @@
       </select>
     </form>
     <a href="/cuotas.csv?account={{ account_param }}"
-       class="text-sm text-blue-600 hover:underline">⬇ exportar CSV</a>
+       class="text-sm text-blue-600 hover:underline">⬇ CSV</a>
   </div>
 </div>
 
-{# ---------- HERO ---------- #}
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
   <div class="card border-l-4 border-purple-500">
     <div class="text-sm text-slate-500 font-medium">Total pendiente en cuotas</div>
@@ -37,37 +36,31 @@
     <div class="text-sm text-slate-500 font-medium">Pagado en cuotas este mes ({{ anchor_label }})</div>
     <div class="text-3xl font-bold tracking-tight mt-1">{{ currency_ars(month_paid_ars) }}</div>
     <div class="text-xs text-slate-500 mt-1">
-      {{ n_txs_ars }} txs en cuotas este mes
+      {{ n_txs_ars }} txs en cuotas
       {% if month_paid_usd > 0 %}· también <b>{{ currency_usd(month_paid_usd) }}</b>{% endif %}
     </div>
   </div>
 </div>
 
-{# ---------- FORECAST ---------- #}
 <div class="card mb-6">
-  <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">
-    Compromisos próximos 6 meses (ARS)
-  </h2>
+  <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Compromisos próximos 6 meses (ARS)</h2>
   {{ forecast_html | safe }}
 </div>
 
-{# ---------- DETALLE ---------- #}
 <div class="card">
-  <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">
-    Cuotas activas ({{ items|length }})
-  </h2>
+  <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cuotas activas ({{ items|length }})</h2>
   {% if items %}
-  <div class="overflow-x-auto">
-  <table class="w-full text-sm min-w-[700px]">
-    <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
+  <table class="w-full text-sm">
+    <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
       <tr>
         <th class="text-left py-2 font-medium">Descripción</th>
-        <th class="text-left py-2 font-medium">Categoría</th>
-        <th class="text-left py-2 font-medium">Cuenta</th>
+        <th class="text-left py-2 font-medium hidden md:table-cell">Categoría</th>
+        <th class="text-left py-2 font-medium hidden md:table-cell">Cuenta</th>
         <th class="text-center py-2 font-medium">Avance</th>
         <th class="text-right py-2 font-medium">Cuota</th>
-        <th class="text-right py-2 font-medium">Restante</th>
-        <th class="text-right py-2 font-medium">Total compra</th>
+        <th class="text-right py-2 font-medium hidden md:table-cell">Restante</th>
+        <th class="text-right py-2 font-medium hidden md:table-cell">Total</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -78,8 +71,9 @@
       {% set total_owed = participants|sum(attribute='amount_owed') %}
       {% set my_amount = it.amount - total_owed %}
       {% set has_note = it.notes and it.notes.strip() %}
-      <tr id="tx-row-{{ it.id }}" class="border-b border-slate-100 hover:bg-slate-50 align-top">
-        <td class="py-2 max-w-md">
+      <tr id="tx-row-{{ it.id }}" class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 align-top">
+        <td class="py-2">
+          <div class="text-xs text-slate-400 md:hidden">{{ it.category or '—' }} · ···{{ it.card_last4 }}</div>
           <div class="truncate" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
           <div class="text-xs text-slate-400">desde {{ it.posted_at[:10] }}</div>
           {% if has_note %}
@@ -95,25 +89,27 @@
                       class="inline">
                   <button type="submit"
                           class="text-xs px-2 py-0.5 rounded-full border transition
-                                 {% if p.paid_back %}bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100
-                                 {% else %}bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100{% endif %}"
-                          title="{% if p.paid_back %}Marcar como NO pagado{% else %}Marcar como pagado{% endif %}">
+                                 {% if p.paid_back %}bg-emerald-50 border-emerald-300 text-emerald-700{% else %}bg-amber-50 border-amber-300 text-amber-700{% endif %}">
                     {% if p.paid_back %}✓{% else %}⏳{% endif %}
                     {{ p.person_name }}
-                    <span class="text-[10px] opacity-70">
-                      {% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}
-                    </span>
+                    <span class="text-[10px] opacity-70">{% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}</span>
                   </button>
                 </form>
               {% endfor %}
             </div>
           {% endif %}
+          <div class="md:hidden mt-1.5 flex items-center gap-2">
+            <div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div class="h-full bg-purple-500" style="width: {{ pct }}%"></div>
+            </div>
+            <span class="text-xs text-slate-500">{{ it.installment_current }}/{{ it.installment_total }}</span>
+          </div>
         </td>
-        <td class="py-2 text-xs text-slate-500">
+        <td class="py-2 text-xs text-slate-500 hidden md:table-cell">
           {{ it.category or '—' }}{% if it.subcategory %} / {{ it.subcategory }}{% endif %}
         </td>
-        <td class="py-2 text-xs text-slate-500 whitespace-nowrap">···{{ it.card_last4 }}</td>
-        <td class="py-2 w-40">
+        <td class="py-2 text-xs text-slate-500 whitespace-nowrap hidden md:table-cell">···{{ it.card_last4 }}</td>
+        <td class="py-2 w-32 hidden md:table-cell">
           <div class="flex items-center gap-2">
             <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
               <div class="h-full bg-purple-500" style="width: {{ pct }}%"></div>
@@ -124,16 +120,17 @@
         <td class="py-2 text-right font-medium whitespace-nowrap">
           {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}
           {% if has_participants %}
-            <div class="text-xs text-purple-600 font-normal">
-              tu: {% if it.currency == 'USD' %}{{ currency_usd(my_amount) }}{% else %}{{ currency_ars(my_amount) }}{% endif %}
-            </div>
+            <div class="text-xs text-purple-600 font-normal">tu: {% if it.currency == 'USD' %}{{ currency_usd(my_amount) }}{% else %}{{ currency_ars(my_amount) }}{% endif %}</div>
           {% endif %}
+          <div class="text-xs text-purple-700 font-normal md:hidden">
+            rest: {% if it.currency == 'USD' %}{{ currency_usd(it.remaining_amount) }}{% else %}{{ currency_ars(it.remaining_amount) }}{% endif %}
+          </div>
         </td>
-        <td class="py-2 text-right font-medium whitespace-nowrap text-purple-700">
+        <td class="py-2 text-right font-medium whitespace-nowrap text-purple-700 hidden md:table-cell">
           {% if it.currency == 'USD' %}{{ currency_usd(it.remaining_amount) }}{% else %}{{ currency_ars(it.remaining_amount) }}{% endif %}
           <div class="text-xs text-slate-400 font-normal">{{ it.remaining_count }} cuota{{ 's' if it.remaining_count != 1 else '' }}</div>
         </td>
-        <td class="py-2 text-right text-slate-500 text-xs whitespace-nowrap">
+        <td class="py-2 text-right text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">
           {% if it.currency == 'USD' %}{{ currency_usd(it.total_purchase) }}{% else %}{{ currency_ars(it.total_purchase) }}{% endif %}
         </td>
         <td class="py-2 text-right whitespace-nowrap">
@@ -147,7 +144,6 @@
       {% endfor %}
     </tbody>
   </table>
-  </div>
   {% else %}
     <p class="text-slate-400 text-sm text-center py-6">No tenés cuotas pendientes 🎉</p>
   {% endif %}

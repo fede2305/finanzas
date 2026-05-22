@@ -1,23 +1,21 @@
-{# Fila de transacción en el drill-down. Editor inline para compartir con N personas. #}
+{# Fila de transacción en el drill-down. #}
 {% set participants = it.participants or [] %}
 {% set has_participants = participants|length > 0 %}
 {% set total_owed = participants|sum(attribute='amount_owed') %}
-{% set total_owed_pending = participants|selectattr('paid_back', 'equalto', 0)|sum(attribute='amount_owed') %}
-{% set total_owed_paid = participants|selectattr('paid_back', 'equalto', 1)|sum(attribute='amount_owed') %}
 {% set my_amount = it.amount - total_owed %}
 {% set zero_share = has_participants and my_amount <= 0.005 %}
-<tr id="tx-row-{{ it.id }}" class="border-b border-slate-100 hover:bg-slate-50 align-top">
-  <td class="py-2 text-slate-500 text-xs whitespace-nowrap">{{ it.posted_at[:10] }}</td>
+<tr id="tx-row-{{ it.id }}" class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 align-top">
+  <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">{{ it.posted_at[:10] }}</td>
   {% set is_cuotas = it.installment_total and it.installment_total > 1 %}
   {% set total_purchase = it.amount * it.installment_total if is_cuotas else 0 %}
   {% set has_note = it.notes and it.notes.strip() %}
-  <td class="py-2 max-w-md">
+  <td class="py-2">
+    <div class="text-xs text-slate-400 md:hidden">{{ it.posted_at[:10] }}{% if it.subcategory %} · {{ it.subcategory }}{% endif %}{% if it.card_last4 %} · ···{{ it.card_last4 }}{% endif %}</div>
     <div class="truncate" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
     {% if is_cuotas %}
       <div class="text-xs text-amber-700 mt-0.5">
         📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
-        · total estimado:
-        {% if it.currency == 'USD' %}{{ currency_usd(total_purchase) }}{% else %}{{ currency_ars(total_purchase) }}{% endif %}
+        · total: {% if it.currency == 'USD' %}{{ currency_usd(total_purchase) }}{% else %}{{ currency_ars(total_purchase) }}{% endif %}
       </div>
     {% endif %}
     {% if has_note %}
@@ -33,22 +31,18 @@
                 class="inline">
             <button type="submit"
                     class="text-xs px-2 py-0.5 rounded-full border transition
-                           {% if p.paid_back %}bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100
-                           {% else %}bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100{% endif %}"
-                    title="{% if p.paid_back %}Marcar como NO pagado{% else %}Marcar como pagado{% endif %}">
+                           {% if p.paid_back %}bg-emerald-50 border-emerald-300 text-emerald-700{% else %}bg-amber-50 border-amber-300 text-amber-700{% endif %}">
               {% if p.paid_back %}✓{% else %}⏳{% endif %}
               {{ p.person_name }}
-              <span class="text-[10px] opacity-70">
-                {% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}
-              </span>
+              <span class="text-[10px] opacity-70">{% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}</span>
             </button>
           </form>
         {% endfor %}
       </div>
     {% endif %}
   </td>
-  <td class="py-2 text-xs text-slate-500">{{ it.subcategory or "—" }}</td>
-  <td class="py-2 text-xs text-slate-500 whitespace-nowrap">···{{ it.card_last4 }}</td>
+  <td class="py-2 text-xs text-slate-500 hidden md:table-cell">{{ it.subcategory or "—" }}</td>
+  <td class="py-2 text-xs text-slate-500 whitespace-nowrap hidden md:table-cell">···{{ it.card_last4 }}</td>
   <td class="py-2 text-right font-medium whitespace-nowrap">
     {% if it.currency == 'USD' %}
       {{ currency_usd(it.amount) }}
@@ -72,8 +66,6 @@
 </tr>
 {% set colspan = 6 %}
 {% include 'partials/note_form_tr.html' %}
-
 {% include 'partials/cat_form_tr.html' %}
-{# share-form: ahora extraído al partial #}
 {% set colspan = 6 %}
 {% include 'partials/share_form_tr.html' %}
