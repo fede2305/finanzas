@@ -20,12 +20,14 @@ def process_upload_job(conn, job_id: int) -> None:
     ).fetchone()
 
     if not job:
+        print(f"[UPLOAD] Job {job_id} not found")
         return
 
     user_id = job["user_id"]
     files_data = json.loads(job["results"] or "[]")
     upload_dir = Path(tempfile.gettempdir()) / "finanzas-uploads" / str(job_id)
 
+    print(f"[UPLOAD] Starting job {job_id}, {len(files_data)} files")
     conn.execute(
         "UPDATE upload_jobs SET status = %s, started_at = NOW() WHERE id = %s",
         ("processing", job_id),
@@ -36,6 +38,7 @@ def process_upload_job(conn, job_id: int) -> None:
         for idx, file_info in enumerate(files_data):
             tmp_path = Path(file_info["tmp_path"])
             filename = file_info["filename"]
+            print(f"[UPLOAD] Processing {idx+1}/{len(files_data)}: {filename}")
 
             try:
                 if not tmp_path.exists():
@@ -52,6 +55,7 @@ def process_upload_job(conn, job_id: int) -> None:
                     "uncategorized": result.uncategorized,
                 })
             except Exception as e:
+                print(f"[UPLOAD] Error processing {filename}: {e}")
                 results.append({"filename": filename, "status": "error", "message": str(e)})
 
             # Update progress in separate transaction (separate connection to commit immediately)
@@ -60,6 +64,7 @@ def process_upload_job(conn, job_id: int) -> None:
                     "UPDATE upload_jobs SET progress_current = %s WHERE id = %s",
                     (idx + 1, job_id),
                 )
+            print(f"[UPLOAD] Progress: {idx+1}/{len(files_data)}")
 
     finally:
         # Cleanup upload directory
