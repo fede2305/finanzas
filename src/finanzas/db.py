@@ -157,6 +157,7 @@ _V2_SQL = """
         id BIGSERIAL PRIMARY KEY,
         user_id TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending',
+        stage TEXT DEFAULT 'uploading',
         progress_current INTEGER DEFAULT 0,
         progress_total INTEGER DEFAULT 0,
         results TEXT,

@@ -281,73 +281,74 @@ def upload_get(request: Request):
 
 
 @app.post("/api/upload")
-async def upload_api(request: Request, files: list[UploadFile] = File(...)):
+async def upload_api(request: Request, file: UploadFile = File(...), job_id: int | None = None, total_files: int | None = None):
     from fastapi.responses import JSONResponse
     user = auth.require_user(request)
     if not user:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     user_id: str = user["sub"]
 
-    if not files:
+    if not file.filename:
         raise HTTPException(400, "No file uploaded")
 
-    if len(files) > 20:
-        raise HTTPException(400, "Máximo 20 archivos por vez")
-
     import json
-    files_data = []
 
-    # Create job first to get ID for temp storage
-    with db.connect() as conn:
-        cur = conn.execute(
-            """INSERT INTO upload_jobs (user_id, status, progress_total, results)
-               VALUES (%s, %s, %s, %s) RETURNING id""",
-            (user_id, "pending", 0, json.dumps([])),
-        )
-        job_id = cur.lastrowid
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in {".pdf", ".xlsx"}:
+        raise HTTPException(400, f"Archivo inválido: {file.filename}")
 
-    # Create temp directory for this job (persistent)
+    if file.size and file.size > 50 * 1024 * 1024:
+        raise HTTPException(400, "Archivo muy grande (máx 50MB)")
+
+    # First file: create new job
+    if not job_id:
+        with db.connect() as conn:
+            cur = conn.execute(
+                """INSERT INTO upload_jobs (user_id, status, stage, progress_total, results)
+                   VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+                (user_id, "pending", "uploading", total_files or 1, json.dumps([])),
+            )
+            job_id = cur.lastrowid
+
+    # Create temp directory for this job
     upload_dir = Path(tempfile.gettempdir()) / "finanzas-uploads" / str(job_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        for file in files:
-            if not file.filename:
-                continue
-            suffix = Path(file.filename).suffix.lower()
-            if suffix not in {".pdf", ".xlsx"}:
-                continue
-            if file.size and file.size > 50 * 1024 * 1024:  # 50MB max
-                continue
+        tmp_path = upload_dir / file.filename
 
-            tmp_path = upload_dir / file.filename
+        # Write to disk in 64KB chunks
+        with open(tmp_path, "wb", buffering=8192) as out:
+            while chunk := await file.read(65536):
+                out.write(chunk)
+                out.flush()
 
-            # Write directly to disk in larger chunks, flush aggressively
-            with open(tmp_path, "wb", buffering=8192) as out:
-                while chunk := await file.read(65536):  # 64KB chunks
-                    out.write(chunk)
-                    out.flush()
+        # Get current files list and add this one
+        with db.connect() as conn:
+            job = conn.execute(
+                "SELECT results FROM upload_jobs WHERE id = %s",
+                (job_id,),
+            ).fetchone()
+            files_data = json.loads(job["results"] or "[]")
 
+            # Add new file
             files_data.append({"filename": file.filename, "tmp_path": str(tmp_path)})
 
-        if not files_data:
-            raise HTTPException(400, "No valid files uploaded")
-
-        # Update job with files
-        with db.connect() as conn:
+            # Update job
             conn.execute(
-                """UPDATE upload_jobs SET progress_total = %s, results = %s WHERE id = %s""",
-                (len(files_data), json.dumps(files_data), job_id),
+                """UPDATE upload_jobs SET results = %s WHERE id = %s""",
+                (json.dumps(files_data), job_id),
             )
 
-        # Start processing in background
-        import asyncio
-        asyncio.create_task(_process_upload_async(job_id))
+        # If this is the last file, start processing
+        if total_files and len(files_data) >= total_files:
+            import asyncio
+            asyncio.create_task(_process_upload_async(job_id))
 
-        return JSONResponse({"job_id": job_id})
+        return JSONResponse({"job_id": job_id, "files_uploaded": len(files_data)})
 
     except Exception as e:
-        shutil.rmtree(upload_dir, ignore_errors=True)
+        print(f"[UPLOAD] Error: {e}")
         raise
 
 
@@ -367,7 +368,7 @@ async def upload_status(request: Request, job_id: int):
 
     with db.connect() as conn:
         job = conn.execute(
-            """SELECT id, status, progress_current, progress_total, results, error
+            """SELECT id, status, stage, progress_current, progress_total, results, error
                FROM upload_jobs WHERE id = %s AND user_id = %s""",
             (job_id, user_id),
         ).fetchone()
@@ -381,6 +382,7 @@ async def upload_status(request: Request, job_id: int):
     return JSONResponse({
         "job_id": job["id"],
         "status": job["status"],
+        "stage": job["stage"] or "uploading",
         "progress": {"current": job["progress_current"], "total": job["progress_total"]},
         "results": results,
         "error": job["error"],

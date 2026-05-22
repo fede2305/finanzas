@@ -29,8 +29,8 @@ def process_upload_job(conn, job_id: int) -> None:
 
     print(f"[UPLOAD] Starting job {job_id}, {len(files_data)} files")
     conn.execute(
-        "UPDATE upload_jobs SET status = %s, started_at = NOW() WHERE id = %s",
-        ("processing", job_id),
+        "UPDATE upload_jobs SET status = %s, stage = %s, started_at = NOW() WHERE id = %s",
+        ("processing", "processing", job_id),
     )
 
     results = []
@@ -39,6 +39,13 @@ def process_upload_job(conn, job_id: int) -> None:
             tmp_path = Path(file_info["tmp_path"])
             filename = file_info["filename"]
             print(f"[UPLOAD] Processing {idx+1}/{len(files_data)}: {filename}")
+
+            # Update progress BEFORE processing (so user sees it's being processed)
+            with db.connect() as progress_conn:
+                progress_conn.execute(
+                    "UPDATE upload_jobs SET progress_current = %s WHERE id = %s",
+                    (idx + 1, job_id),
+                )
 
             try:
                 if not tmp_path.exists():
@@ -58,12 +65,6 @@ def process_upload_job(conn, job_id: int) -> None:
                 print(f"[UPLOAD] Error processing {filename}: {e}")
                 results.append({"filename": filename, "status": "error", "message": str(e)})
 
-            # Update progress in separate transaction (separate connection to commit immediately)
-            with db.connect() as progress_conn:
-                progress_conn.execute(
-                    "UPDATE upload_jobs SET progress_current = %s WHERE id = %s",
-                    (idx + 1, job_id),
-                )
             print(f"[UPLOAD] Progress: {idx+1}/{len(files_data)}")
 
     finally:
