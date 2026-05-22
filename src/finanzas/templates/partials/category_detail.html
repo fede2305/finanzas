@@ -11,8 +11,10 @@
         · {{ (items|length + items_usd|length) }} txs
       </span>
     </div>
-    <button onclick="(window.closeCategoryDetail || function(){document.getElementById('category-detail').innerHTML=''})()"
-            class="text-slate-400 hover:text-slate-700 text-sm">✕ cerrar</button>
+    {% if show_close %}
+    <button onclick="window.loadAllTransactionsOfMonth && window.loadAllTransactionsOfMonth()"
+            class="text-slate-400 hover:text-slate-700 text-sm">✕ todos</button>
+    {% endif %}
   </div>
 
   {% if items or items_usd %}

@@ -94,18 +94,17 @@
 </div>
 {% endif %}
 
-{# ---------- DISTRIBUCIÓN + CUOTAS FORECAST ---------- #}
+{# ---------- TREEMAP + LISTA DE GASTOS (lado a lado) ---------- #}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
   <div class="card">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Distribución por categoría
-      <span class="text-xs text-slate-400 font-normal normal-case tracking-normal ml-2">(clickeá una categoría para ver los gastos)</span>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">
+      Distribución por categoría
+      <span class="text-xs text-slate-400 font-normal normal-case tracking-normal ml-2">(clickeá para filtrar)</span>
     </h2>
     {{ treemap_html | safe }}
   </div>
-  <div class="card">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cuotas — compromisos próximos 6 meses</h2>
-    {{ cuotas_html | safe }}
-  </div>
+
+  <div id="category-detail" class="overflow-y-auto max-h-[480px] lg:max-h-none lg:overflow-y-auto" style="max-height: 480px;"></div>
 </div>
 
 <script>
@@ -115,16 +114,12 @@
   const monthIso = "{{ month_iso }}";
   const accountParam = "{{ account_param }}";
 
-  // cleanupRow se define en base.html (global).
-
-  // null = "todos los gastos del mes" (default). Un catId = filtrado a esa categoría.
   window.__openCatId = null;
 
-  function fetchAndPopulate(url, doScroll) {
+  function fetchAndPopulate(url) {
     return fetch(url).then(r => r.text()).then(html => {
       const target = document.getElementById('category-detail');
       target.innerHTML = html;
-      // innerHTML NO ejecuta los <script>; los re-creamos para que corran.
       target.querySelectorAll('script').forEach(old => {
         const ns = document.createElement('script');
         for (const a of old.attributes) ns.setAttribute(a.name, a.value);
@@ -132,23 +127,22 @@
         old.replaceWith(ns);
       });
       if (window.htmx) window.htmx.process(target);
-      if (doScroll) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+      // Scroll to top of the panel when content changes
+      target.scrollTop = 0;
     });
   }
 
-  window.loadAllTransactionsOfMonth = function(doScroll) {
+  window.loadAllTransactionsOfMonth = function() {
     const url = `/transactions/month?month=${monthIso}&account=${accountParam}`;
     window.__openCatId = null;
-    // Resetear el "drill-in" del treemap si Plotly lo aplicó
     try {
       if (window.Plotly && tm) Plotly.update(tm, {}, {'treemap.level': null});
-    } catch (e) { /* noop */ }
-    return fetchAndPopulate(url, doScroll);
+    } catch (e) {}
+    return fetchAndPopulate(url);
   };
 
-  // Alias usado por el botón "✕ cerrar" del partial.
   window.closeCategoryDetail = function() {
-    window.loadAllTransactionsOfMonth(false);
+    window.loadAllTransactionsOfMonth();
   };
 
   function bind() {
@@ -157,27 +151,30 @@
       if (!ev || !ev.points || !ev.points.length) return;
       const p = ev.points[0];
       const catId = p.customdata !== undefined ? p.customdata : 0;
-      // Toggle: misma categoría → vuelve a "todos"
       if (window.__openCatId === catId) {
-        window.loadAllTransactionsOfMonth(true);
+        window.loadAllTransactionsOfMonth();
         return;
       }
       window.__openCatId = catId;
-      const url = `/category/${catId}/transactions?month=${monthIso}&account=${accountParam}`;
-      fetchAndPopulate(url, true);
+      fetchAndPopulate(`/category/${catId}/transactions?month=${monthIso}&account=${accountParam}`);
     });
   }
   bind();
 
-  // Carga inicial: mostrar TODOS los gastos del mes al abrir el dashboard.
-  window.loadAllTransactionsOfMonth(false);
+  window.loadAllTransactionsOfMonth();
 })();
 </script>
 
-{# ---------- TREND 6M ---------- #}
-<div class="card mb-6">
-  <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Tendencia 6 meses (ARS)</h2>
-  {{ trend_html | safe }}
+{# ---------- TREND 6M + CUOTAS FORECAST ---------- #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <div class="card">
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Tendencia 6 meses (ARS)</h2>
+    {{ trend_html | safe }}
+  </div>
+  <div class="card">
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cuotas — próximos 6 meses</h2>
+    {{ cuotas_html | safe }}
+  </div>
 </div>
 
 {# ---------- TOP MERCHANTS + GASTOS FIJOS ---------- #}
@@ -281,8 +278,5 @@
     {% endfor %}
   </div>
 </div>
-
-{# ---------- CATEGORY DRILL-DOWN — al final para que no tape la info de arriba ---------- #}
-<div id="category-detail"></div>
 
 {% endblock %}
