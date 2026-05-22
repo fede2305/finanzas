@@ -150,6 +150,21 @@ _V1_SQL = """
     );
 
     CREATE INDEX IF NOT EXISTS idx_tx_part_tx ON tx_participants(transaction_id);
+
+    CREATE TABLE IF NOT EXISTS upload_jobs (
+        id BIGSERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        progress_current INTEGER DEFAULT 0,
+        progress_total INTEGER DEFAULT 0,
+        results TEXT,
+        error TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        started_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_upload_user_status ON upload_jobs(user_id, status);
 """
 
 MIGRATIONS: list[str] = [_V1_SQL]

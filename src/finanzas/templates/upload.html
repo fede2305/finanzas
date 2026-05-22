@@ -9,10 +9,10 @@
     Aceptamos PDFs de <b>Santander Río</b> y <b>Galicia</b>, y xlsx de Santander.
     Si subís el mismo archivo dos veces, no se duplican datos.
   </p>
-  <form method="post" enctype="multipart/form-data" class="space-y-4">
+  <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
     <div>
       <label class="block text-sm font-medium mb-1">Archivo</label>
-      <input type="file" name="files" accept=".pdf,.xlsx" required multiple
+      <input type="file" id="fileInput" name="files" accept=".pdf,.xlsx" required multiple
              class="block w-full text-sm border border-slate-300 dark:border-slate-600 rounded-md px-3 py-2 bg-white dark:bg-slate-800 file:mr-3 file:py-2 file:px-3 file:border-0 file:bg-blue-50 dark:file:bg-blue-950 file:text-blue-700 dark:file:text-blue-300 file:font-medium hover:file:bg-blue-100" />
     </div>
     <button type="submit" class="btn btn-primary">Subir y parsear</button>
@@ -20,32 +20,130 @@
   </form>
 </div>
 
-{% if results %}
-<div class="max-w-2xl mt-6 space-y-4">
-  {% for filename, result in results %}
-  <div class="card border-l-4
-       {% if result.file_already_imported %}border-amber-400{% else %}border-emerald-500{% endif %}">
-    <h2 class="font-semibold mb-2 text-sm break-words" title="{{ filename }}">{{ filename }}</h2>
-    {% if result.file_already_imported %}
-      <p class="text-sm text-amber-700 dark:text-amber-400">⚠️ Ya importado antes. Sin cambios.</p>
-    {% else %}
-      <ul class="text-sm space-y-1">
-        <li>✅ <b>{{ result.new_transactions }}</b> transacciones nuevas</li>
-        <li>🔁 <b>{{ result.duplicate_transactions }}</b> duplicadas</li>
-        <li>🤖 <b>{{ result.auto_categorized }}</b> auto-categorizadas</li>
-        <li>❓ <b>{{ result.uncategorized }}</b> sin categorizar</li>
-        {% if result.recurring_groups_detected > 0 %}
-        <li>🔄 <b>{{ result.recurring_groups_detected }}</b> recurrentes detectados</li>
-        {% endif %}
-      </ul>
-    {% endif %}
-  </div>
-  {% endfor %}
-  <div class="flex gap-3">
-    <a href="/review" class="btn btn-ghost text-sm">Ir al review inbox →</a>
-    <a href="/" class="btn btn-primary text-sm">Ver dashboard →</a>
+<!-- Modal flotante de progreso -->
+<div id="uploadModal" class="hidden fixed inset-0 bg-black/30 flex items-end p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md ml-auto">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-700">
+      <h2 class="font-semibold text-slate-900 dark:text-white">Subiendo archivos...</h2>
+    </div>
+    <div class="p-4 space-y-4">
+      <div>
+        <div class="flex justify-between text-sm mb-2">
+          <span class="text-slate-600 dark:text-slate-300">Progreso</span>
+          <span id="progressText" class="text-slate-600 dark:text-slate-300">0/0</span>
+        </div>
+        <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+          <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+      <div id="resultsList" class="max-h-64 overflow-y-auto space-y-2">
+        <!-- Los resultados se insertan aquí -->
+      </div>
+      <button id="closeBtn" type="button" class="btn btn-primary w-full hidden">Listo</button>
+    </div>
   </div>
 </div>
-{% endif %}
+
+<script>
+  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('fileInput');
+    const files = fileInput.files;
+
+    if (!files.length) {
+      alert('Selecciona al menos un archivo');
+      return;
+    }
+
+    const formData = new FormData();
+    for (let f of files) formData.append('files', f);
+
+    // Mostrar modal
+    const modal = document.getElementById('uploadModal');
+    modal.classList.remove('hidden');
+    document.getElementById('closeBtn').classList.add('hidden');
+
+    try {
+      // Upload to API endpoint
+      const uploadResp = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResp.ok) {
+        const err = await uploadResp.json();
+        throw new Error(err.detail || `Upload failed: ${uploadResp.status}`);
+      }
+
+      const { job_id } = await uploadResp.json();
+
+      if (!job_id) {
+        throw new Error('No job ID received');
+      }
+
+      // Polling para status
+      await pollStatus(job_id);
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+      modal.classList.add('hidden');
+    }
+  });
+
+  async function pollStatus(jobId) {
+    const modal = document.getElementById('uploadModal');
+    const resultsList = document.getElementById('resultsList');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const closeBtn = document.getElementById('closeBtn');
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const resp = await fetch(`/api/upload-status/${jobId}`);
+        if (!resp.ok) throw new Error('Status request failed');
+
+        const data = await resp.json();
+        const { status, progress, results, error } = data;
+
+        // Update progress bar
+        const pct = progress.total > 0 ? (progress.current / progress.total * 100) : 0;
+        progressBar.style.width = pct + '%';
+        progressText.textContent = `${progress.current}/${progress.total}`;
+
+        // Show results as they complete
+        if (results && results.length > 0) {
+          resultsList.innerHTML = results.map(r => {
+            let color = r.status === 'success' ? 'border-emerald-500' : 'border-red-500';
+            let icon = r.status === 'success' ? '✅' : '❌';
+            return `
+              <div class="text-sm border-l-4 ${color} pl-3 py-2 bg-slate-50 dark:bg-slate-700/50">
+                <div class="font-medium text-slate-900 dark:text-white">${icon} ${r.filename}</div>
+                ${r.status === 'success' ? `
+                  <ul class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                    <li>✓ ${r.new_transactions} nuevas</li>
+                    <li>↻ ${r.duplicate_transactions} duplicadas</li>
+                  </ul>
+                ` : `<div class="text-xs text-red-600 dark:text-red-400">${r.message}</div>`}
+              </div>
+            `;
+          }).join('');
+        }
+
+        // Si completó
+        if (status === 'completed' || status === 'error') {
+          clearInterval(pollInterval);
+          closeBtn.classList.remove('hidden');
+          closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            fileInput.value = '';
+            window.location.href = '/review';
+          });
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+    }, 500);
+  }
+</script>
 
 {% endblock %}

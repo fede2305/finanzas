@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from finanzas import auth, db, ingest, insights, queries
+from finanzas import auth, db, ingest, insights, queries, upload_worker
 from finanzas.categorizer import add_learned_rule
 from finanzas.parsers.base import normalize_description
 
@@ -29,7 +29,21 @@ ROOT = Path(__file__).resolve().parent
 async def lifespan(_app: FastAPI):
     """Ejecuta migraciones al arrancar (seed es per-user, se hace en /auth/callback)."""
     db.migrate()
+
+    # Start background task to process pending uploads
+    import asyncio
+    async def process_uploads_loop():
+        while True:
+            try:
+                with db.connect() as conn:
+                    upload_worker.start_processing_pending()
+            except Exception as e:
+                print(f"Error processing uploads: {e}")
+            await asyncio.sleep(5)  # Check every 5 seconds
+
+    task = asyncio.create_task(process_uploads_loop())
     yield
+    task.cancel()
 
 
 app = FastAPI(title="Finanzas", lifespan=lifespan)
@@ -265,51 +279,111 @@ def upload_get(request: Request):
     )
 
 
-@app.post("/upload", response_class=HTMLResponse)
-async def upload_post(request: Request, files: list[UploadFile] = File(...)):
+@app.post("/api/upload")
+async def upload_api(request: Request, files: list[UploadFile] = File(...)):
+    from fastapi.responses import JSONResponse
     user = auth.require_user(request)
     if not user:
-        return RedirectResponse("/login", status_code=302)
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
     user_id: str = user["sub"]
 
     if not files:
         raise HTTPException(400, "No file uploaded")
 
-    results = []
+    if len(files) > 20:
+        raise HTTPException(400, "Máximo 20 archivos por vez")
+
+    import json
+    files_data = []
+
+    # Create job first to get ID for temp storage
     with db.connect() as conn:
+        cur = conn.execute(
+            """INSERT INTO upload_jobs (user_id, status, progress_total, results)
+               VALUES (%s, %s, %s, %s) RETURNING id""",
+            (user_id, "pending", 0, json.dumps([])),
+        )
+        job_id = cur.lastrowid
+
+    # Create temp directory for this job (persistent)
+    upload_dir = Path(tempfile.gettempdir()) / "finanzas-uploads" / str(job_id)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
         for file in files:
             if not file.filename:
                 continue
             suffix = Path(file.filename).suffix.lower()
             if suffix not in {".pdf", ".xlsx"}:
                 continue
+            if file.size and file.size > 50 * 1024 * 1024:  # 50MB max
+                continue
 
-            content = await file.read()
+            tmp_path = upload_dir / file.filename
 
-            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                tmp.write(content)
-                tmp.flush()
-                tmp_path = Path(tmp.name)
-                original_path = tmp_path.with_name(file.filename)
-                try:
-                    original_path.write_bytes(content)
-                except Exception:
-                    original_path = tmp_path
+            # Write directly to disk in chunks, no buffering
+            with open(tmp_path, "wb") as out:
+                while chunk := await file.read(8192):
+                    out.write(chunk)
 
-            try:
-                result = ingest.ingest_file(conn, original_path, user_id=user_id, file_content=content)
-                results.append((file.filename, result))
-            finally:
-                for p in (tmp_path, original_path):
-                    try:
-                        if p.exists():
-                            p.unlink()
-                    except Exception:
-                        pass
+            files_data.append({"filename": file.filename, "tmp_path": str(tmp_path)})
 
-    return templates.TemplateResponse(
-        request, "upload.html", {"results": results, "user": user},
-    )
+        if not files_data:
+            raise HTTPException(400, "No valid files uploaded")
+
+        # Update job with files
+        with db.connect() as conn:
+            conn.execute(
+                """UPDATE upload_jobs SET progress_total = %s, results = %s WHERE id = %s""",
+                (len(files_data), json.dumps(files_data), job_id),
+            )
+
+        # Start processing in background
+        import asyncio
+        asyncio.create_task(_process_upload_async(job_id))
+
+        return JSONResponse({"job_id": job_id})
+
+    except Exception as e:
+        import shutil
+        shutil.rmtree(upload_dir, ignore_errors=True)
+        raise
+
+
+async def _process_upload_async(job_id: int) -> None:
+    """Background task to process upload job."""
+    with db.connect() as conn:
+        upload_worker.process_upload_job(conn, job_id)
+
+
+@app.get("/api/upload-status/{job_id}")
+async def upload_status(request: Request, job_id: int):
+    from fastapi.responses import JSONResponse
+    user = auth.require_user(request)
+    if not user:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    user_id: str = user["sub"]
+
+    with db.connect() as conn:
+        job = conn.execute(
+            """SELECT id, status, progress_current, progress_total, results, error
+               FROM upload_jobs WHERE id = %s AND user_id = %s""",
+            (job_id, user_id),
+        ).fetchone()
+
+    if not job:
+        return JSONResponse({"error": "Job not found"}, status_code=404)
+
+    import json
+    results = json.loads(job["results"]) if job["results"] else []
+
+    return JSONResponse({
+        "job_id": job["id"],
+        "status": job["status"],
+        "progress": {"current": job["progress_current"], "total": job["progress_total"]},
+        "results": results,
+        "error": job["error"],
+    })
 
 
 # --------------------- Review inbox ---------------------
