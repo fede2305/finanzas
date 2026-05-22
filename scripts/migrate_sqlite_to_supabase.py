@@ -1,4 +1,4 @@
-"""Script one-time: migra datos de SQLite local → Supabase PostgreSQL.
+"""Script one-time: migra datos de SQLite local -> Supabase PostgreSQL.
 
 Uso:
     DATABASE_URL=postgresql://... python scripts/migrate_sqlite_to_supabase.py \\
@@ -26,7 +26,7 @@ import psycopg2.extras
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Migrar SQLite → Supabase PostgreSQL")
+    parser = argparse.ArgumentParser(description="Migrar SQLite -> Supabase PostgreSQL")
     parser.add_argument("--sqlite", required=True, help="Ruta al archivo data.db")
     parser.add_argument("--user-id", required=True, help="Google sub (o email) del usuario")
     parser.add_argument("--user-email", required=True, help="Email del usuario")
@@ -44,7 +44,7 @@ def main() -> None:
     pg_raw.autocommit = False
 
     user_id = args.user_id
-    print(f"Migrando datos de {args.sqlite} → Supabase como user_id={user_id!r}")
+    print(f"Migrando datos de {args.sqlite} -> Supabase como user_id={user_id!r}")
 
     try:
         _migrate(sq, pg_raw, user_id, args.dry_run)
@@ -65,6 +65,13 @@ def main() -> None:
 
 def _migrate(sq: sqlite3.Connection, pg_raw, user_id: str, dry_run: bool) -> None:
     pg = pg_raw.cursor()
+
+    # Limpiar datos previos del usuario (ej: seeds del primer login)
+    print("Limpiando datos previos del usuario en Supabase...")
+    for table in ("transactions", "manual_expenses",
+                  "statements", "rules", "recurring_groups", "accounts", "categories"):
+        pg.execute(f"DELETE FROM {table} WHERE user_id = %s", (user_id,))
+        print(f"  {table}: {pg.rowcount} filas eliminadas")
 
     # --- categories (primero roots, luego hijos para respetar FK) ---
     cat_id_map: dict[int, int] = {}
