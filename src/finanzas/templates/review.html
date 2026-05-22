@@ -18,7 +18,8 @@
     Asigná una categoría a cada fila. El checkbox <b>"Recordar"</b> guarda una regla
     para que el próximo merchant igual se categorice solo.
   </p>
-  <table class="w-full text-sm">
+  <div class="overflow-x-auto">
+  <table class="w-full text-sm min-w-[700px]">
     <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
       <tr>
         <th class="text-left py-2 font-medium">Fecha</th>
@@ -87,6 +88,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 
 <script>

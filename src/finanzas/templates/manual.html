@@ -78,7 +78,8 @@
   <div class="card lg:col-span-2">
     <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cargados ({{ items|length }})</h2>
     {% if items %}
-    <table class="w-full text-sm">
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm min-w-[500px]">
       <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
         <tr>
           <th class="text-left py-2 font-medium">Fecha</th>
@@ -113,6 +114,7 @@
       {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
       <p class="text-slate-400 text-sm">Todavía no cargaste gastos manuales.</p>
     {% endif %}

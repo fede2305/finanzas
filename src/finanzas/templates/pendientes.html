@@ -40,7 +40,8 @@
       <a href="/pendientes.csv?person={{ g.person_name | urlencode }}&include_paid={{ 1 if include_paid else 0 }}"
          class="text-sm text-blue-600 hover:underline">⬇ exportar detalle de {{ g.person_name }}</a>
     </div>
-    <table class="w-full text-sm">
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm min-w-[500px]">
       <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
         <tr>
           <th class="text-left py-2 font-medium">Fecha</th>
@@ -80,6 +81,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
   {% endfor %}
 </div>
