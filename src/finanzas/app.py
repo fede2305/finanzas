@@ -266,44 +266,49 @@ def upload_get(request: Request):
 
 
 @app.post("/upload", response_class=HTMLResponse)
-async def upload_post(request: Request, file: UploadFile = File(...)):
+async def upload_post(request: Request, files: list[UploadFile] = File(...)):
     user = auth.require_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
     user_id: str = user["sub"]
 
-    if not file.filename:
+    if not files:
         raise HTTPException(400, "No file uploaded")
 
-    suffix = Path(file.filename).suffix.lower()
-    if suffix not in {".pdf", ".xlsx"}:
-        raise HTTPException(400, "Solo se aceptan PDFs o xlsx")
+    results = []
+    with db.connect() as conn:
+        for file in files:
+            if not file.filename:
+                continue
+            suffix = Path(file.filename).suffix.lower()
+            if suffix not in {".pdf", ".xlsx"}:
+                continue
 
-    content = await file.read()
+            content = await file.read()
 
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(content)
-        tmp.flush()
-        tmp_path = Path(tmp.name)
-        original_path = tmp_path.with_name(file.filename)
-        try:
-            original_path.write_bytes(content)
-        except Exception:
-            original_path = tmp_path
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp.write(content)
+                tmp.flush()
+                tmp_path = Path(tmp.name)
+                original_path = tmp_path.with_name(file.filename)
+                try:
+                    original_path.write_bytes(content)
+                except Exception:
+                    original_path = tmp_path
 
-    try:
-        with db.connect() as conn:
-            result = ingest.ingest_file(conn, original_path, user_id=user_id, file_content=content)
-    finally:
-        for p in (tmp_path, original_path):
             try:
-                if p.exists():
-                    p.unlink()
-            except Exception:
-                pass
+                result = ingest.ingest_file(conn, original_path, user_id=user_id, file_content=content)
+                results.append((file.filename, result))
+            finally:
+                for p in (tmp_path, original_path):
+                    try:
+                        if p.exists():
+                            p.unlink()
+                    except Exception:
+                        pass
 
     return templates.TemplateResponse(
-        request, "upload.html", {"result": result, "filename": file.filename, "user": user},
+        request, "upload.html", {"results": results, "user": user},
     )
 
 
