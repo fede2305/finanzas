@@ -1083,7 +1083,11 @@ def _plot_treemap(cat_dist: list[tuple[int | None, str, str, float]],
         textinfo="label+percent root",
         hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<extra></extra>",
     ))
-    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=320)
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0), height=320,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
     return fig.to_html(
         include_plotlyjs="cdn", full_html=False,
         config={"displayModeBar": False},
@@ -1103,8 +1107,14 @@ def _plot_trend(trend: list[tuple[str, float]]) -> str:
         hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
         fill="tozeroy", fillcolor="rgba(59,130,246,0.1)",
     ))
-    fig.update_layout(margin=dict(l=40, r=10, t=10, b=40), height=240,
-                       xaxis=dict(showgrid=False), yaxis=dict(tickformat=",.0f"))
+    fig.update_layout(
+        margin=dict(l=40, r=10, t=10, b=40), height=240,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#94a3b8"),
+        xaxis=dict(showgrid=False),
+        yaxis=dict(tickformat=",.0f", gridcolor="rgba(148,163,184,0.2)"),
+    )
     return fig.to_html(include_plotlyjs=False, full_html=False, config={"displayModeBar": False})
 
 
@@ -1125,8 +1135,11 @@ def _plot_cuotas(cuotas: list[tuple[str, float]]) -> str:
     fig.update_layout(
         margin=dict(l=40, r=20, t=40, b=40),
         height=260,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#94a3b8"),
         xaxis=dict(showgrid=False),
-        yaxis=dict(tickformat=",.0f", showgrid=True, gridcolor="#f1f5f9",
+        yaxis=dict(tickformat=",.0f", showgrid=True, gridcolor="rgba(148,163,184,0.2)",
                    range=[0, max_val * 1.2] if max_val > 0 else None),
         showlegend=False,
         uniformtext=dict(minsize=10, mode="show"),

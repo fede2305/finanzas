@@ -2,10 +2,10 @@
 {% block title %}Subir resumen · finanzas{% endblock %}
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-6">Subir resumen de tarjeta</h1>
+<h1 class="text-2xl font-bold mb-6 text-slate-900 dark:text-white">Subir resumen de tarjeta</h1>
 
 <div class="card max-w-2xl">
-  <p class="text-sm text-slate-600 mb-4">
+  <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">
     Aceptamos PDFs de <b>Santander Río</b> y <b>Galicia</b>, y xlsx de Santander.
     Si subís el mismo archivo dos veces, no se duplican datos.
   </p>
@@ -13,10 +13,10 @@
     <div>
       <label class="block text-sm font-medium mb-1">Archivo</label>
       <input type="file" name="files" accept=".pdf,.xlsx" required multiple
-             class="block w-full text-sm border border-slate-300 rounded-md px-3 py-2 bg-white file:mr-3 file:py-2 file:px-3 file:border-0 file:bg-blue-50 file:text-blue-700 file:font-medium hover:file:bg-blue-100" />
+             class="block w-full text-sm border border-slate-300 dark:border-slate-600 rounded-md px-3 py-2 bg-white dark:bg-slate-800 file:mr-3 file:py-2 file:px-3 file:border-0 file:bg-blue-50 dark:file:bg-blue-950 file:text-blue-700 dark:file:text-blue-300 file:font-medium hover:file:bg-blue-100" />
     </div>
     <button type="submit" class="btn btn-primary">Subir y parsear</button>
-    <p class="text-xs text-slate-400">Podés seleccionar varios archivos a la vez (Ctrl+click o Shift+click).</p>
+    <p class="text-xs text-slate-400 dark:text-slate-500">Podés seleccionar varios archivos a la vez (Ctrl+click o Shift+click).</p>
   </form>
 </div>
 
@@ -25,9 +25,9 @@
   {% for filename, result in results %}
   <div class="card border-l-4
        {% if result.file_already_imported %}border-amber-400{% else %}border-emerald-500{% endif %}">
-    <h2 class="font-semibold mb-2 text-sm truncate" title="{{ filename }}">{{ filename }}</h2>
+    <h2 class="font-semibold mb-2 text-sm break-words" title="{{ filename }}">{{ filename }}</h2>
     {% if result.file_already_imported %}
-      <p class="text-sm text-amber-700">⚠️ Ya importado antes. Sin cambios.</p>
+      <p class="text-sm text-amber-700 dark:text-amber-400">⚠️ Ya importado antes. Sin cambios.</p>
     {% else %}
       <ul class="text-sm space-y-1">
         <li>✅ <b>{{ result.new_transactions }}</b> transacciones nuevas</li>

@@ -4,14 +4,14 @@
    - colspan: nro de columnas (default 6) #}
 {% set _cs = colspan|default(6) %}
 {% if tree is defined %}
-<tr id="cat-form-{{ it.id }}" class="hidden bg-blue-50">
+<tr id="cat-form-{{ it.id }}" class="hidden bg-blue-50 dark:bg-blue-950/40">
   <td colspan="{{ _cs }}" class="py-3 px-4">
     <form hx-post="/tx/{{ it.id }}/category"
           hx-target="#tx-row-{{ it.id }}"
           hx-swap="outerHTML"
           hx-on::after-request="window.cleanupRow && window.cleanupRow({{ it.id }})"
           class="flex items-center gap-2 flex-wrap text-sm">
-      <span class="text-xs text-slate-600 font-medium">Cambiar a:</span>
+      <span class="text-xs text-slate-600 dark:text-slate-300 font-medium">Cambiar a:</span>
       <select name="category_id" required
               class="text-sm rounded border border-slate-300 px-2 py-1 bg-white"
               onchange="updateCatSubs{{ it.id }}(this)">
@@ -26,7 +26,7 @@
               class="text-sm rounded border border-slate-300 px-2 py-1 bg-white">
         <option value="">—</option>
       </select>
-      <label class="inline-flex items-center gap-1 text-xs text-slate-600 ml-2">
+      <label class="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 ml-2">
         <input type="checkbox" name="remember" value="1" class="rounded">
         recordar para este merchant
       </label>

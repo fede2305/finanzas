@@ -3,11 +3,11 @@
 {% block content %}
 
 <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
-  <h1 class="text-2xl font-bold">{{ month_label }}</h1>
+  <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{{ month_label }}</h1>
   <form method="get" action="/" class="flex items-center gap-2 flex-wrap">
-    <label class="text-sm text-slate-500">Tarjeta:</label>
+    <label class="text-sm text-slate-500 dark:text-slate-400">Tarjeta:</label>
     <select name="account" onchange="this.form.submit()"
-            class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
+            class="rounded-md border border-slate-300 dark:border-slate-600 text-sm px-3 py-1.5 bg-white dark:bg-slate-800">
       <option value="all" {% if account_param == "all" %}selected{% endif %}>Todas</option>
       {% for a in accounts %}
         <option value="{{ a.id }}" {% if account_param == a.id|string %}selected{% endif %}>
@@ -15,9 +15,9 @@
         </option>
       {% endfor %}
     </select>
-    <label class="text-sm text-slate-500 ml-3">Mes:</label>
+    <label class="text-sm text-slate-500 dark:text-slate-400 ml-3">Mes:</label>
     <select name="month" onchange="this.form.submit()"
-            class="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
+            class="rounded-md border border-slate-300 dark:border-slate-600 text-sm px-3 py-1.5 bg-white dark:bg-slate-800">
       {% for val, label in month_options %}
         <option value="{{ val }}" {% if val == month_iso %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
@@ -28,54 +28,54 @@
 {# ---------- HERO ---------- #}
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
   <div class="card md:col-span-2">
-    <div class="text-sm text-slate-500 font-medium">Tu parte (ARS)</div>
-    <div class="text-4xl font-bold tracking-tight mt-2">{{ currency_ars(ars) }}</div>
+    <div class="text-sm text-slate-500 dark:text-slate-400 font-medium">Tu parte (ARS)</div>
+    <div class="text-4xl font-bold tracking-tight mt-2 text-slate-900 dark:text-white">{{ currency_ars(ars) }}</div>
     <div class="mt-2 text-sm flex flex-wrap items-center gap-3">
       {% if delta_ars is not none %}
         {% if delta_ars > 0 %}
-          <span class="text-rose-600">↑ {{ fmt_pct(delta_ars) }}</span>
+          <span class="text-rose-600 dark:text-rose-400">↑ {{ fmt_pct(delta_ars) }}</span>
         {% else %}
-          <span class="text-emerald-600">↓ {{ fmt_pct(delta_ars) }}</span>
+          <span class="text-emerald-600 dark:text-emerald-400">↓ {{ fmt_pct(delta_ars) }}</span>
         {% endif %}
-        <span class="text-slate-500">vs promedio últimos 3 meses</span>
+        <span class="text-slate-500 dark:text-slate-400">vs promedio últimos 3 meses</span>
       {% else %}
-        <span class="text-slate-400">Sin histórico para comparar</span>
+        <span class="text-slate-400 dark:text-slate-500">Sin histórico para comparar</span>
       {% endif %}
     </div>
     {% if ars_facturado != ars or ars_te_deben > 0 or ars_te_pagado > 0 %}
-    <div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
-      <span class="text-slate-500">Pagaste a la tarjeta: <b class="text-slate-700">{{ currency_ars(ars_facturado) }}</b></span>
+    <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
+      <span class="text-slate-500 dark:text-slate-400">Pagaste a la tarjeta: <b class="text-slate-700 dark:text-slate-200">{{ currency_ars(ars_facturado) }}</b></span>
       {% if ars_te_deben > 0 %}
-        <a href="/pendientes" class="text-amber-700 hover:underline">⏳ Te deben: <b>{{ currency_ars(ars_te_deben) }}</b></a>
+        <a href="/pendientes" class="text-amber-700 dark:text-amber-400 hover:underline">⏳ Te deben: <b>{{ currency_ars(ars_te_deben) }}</b></a>
       {% endif %}
       {% if ars_te_pagado > 0 %}
-        <span class="text-emerald-700">✓ Ya recuperaste: <b>{{ currency_ars(ars_te_pagado) }}</b></span>
+        <span class="text-emerald-700 dark:text-emerald-400">✓ Ya recuperaste: <b>{{ currency_ars(ars_te_pagado) }}</b></span>
       {% endif %}
     </div>
     {% endif %}
   </div>
   <div class="card">
-    <div class="text-sm text-slate-500 font-medium">Tu parte (USD)</div>
-    <div class="text-3xl font-bold tracking-tight mt-2 text-slate-700">{{ currency_usd(usd) }}</div>
+    <div class="text-sm text-slate-500 dark:text-slate-400 font-medium">Tu parte (USD)</div>
+    <div class="text-3xl font-bold tracking-tight mt-2 text-slate-700 dark:text-slate-200">{{ currency_usd(usd) }}</div>
     <div class="mt-2 text-sm">
       {% if delta_usd is not none %}
         {% if delta_usd > 0 %}
-          <span class="text-rose-600">↑ {{ fmt_pct(delta_usd) }}</span>
+          <span class="text-rose-600 dark:text-rose-400">↑ {{ fmt_pct(delta_usd) }}</span>
         {% else %}
-          <span class="text-emerald-600">↓ {{ fmt_pct(delta_usd) }}</span>
+          <span class="text-emerald-600 dark:text-emerald-400">↓ {{ fmt_pct(delta_usd) }}</span>
         {% endif %}
       {% else %}
-        <span class="text-slate-400">Sin histórico</span>
+        <span class="text-slate-400 dark:text-slate-500">Sin histórico</span>
       {% endif %}
     </div>
     {% if usd_facturado != usd or usd_te_deben > 0 or usd_te_pagado > 0 %}
-    <div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
-      <span class="text-slate-500">Pagaste: <b class="text-slate-700">{{ currency_usd(usd_facturado) }}</b></span>
+    <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
+      <span class="text-slate-500 dark:text-slate-400">Pagaste: <b class="text-slate-700 dark:text-slate-200">{{ currency_usd(usd_facturado) }}</b></span>
       {% if usd_te_deben > 0 %}
-        <a href="/pendientes" class="text-amber-700 hover:underline">⏳ <b>{{ currency_usd(usd_te_deben) }}</b></a>
+        <a href="/pendientes" class="text-amber-700 dark:text-amber-400 hover:underline">⏳ <b>{{ currency_usd(usd_te_deben) }}</b></a>
       {% endif %}
       {% if usd_te_pagado > 0 %}
-        <span class="text-emerald-700">✓ <b>{{ currency_usd(usd_te_pagado) }}</b></span>
+        <span class="text-emerald-700 dark:text-emerald-400">✓ <b>{{ currency_usd(usd_te_pagado) }}</b></span>
       {% endif %}
     </div>
     {% endif %}
@@ -84,11 +84,11 @@
 
 {# ---------- INSIGHTS ---------- #}
 {% if insights %}
-<div class="card mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-indigo-100">
-  <div class="text-sm font-medium text-indigo-700 mb-2">Insights</div>
+<div class="mb-6 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 border border-indigo-100 dark:border-slate-700">
+  <div class="text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-2">Insights</div>
   <ul class="space-y-1.5 text-sm">
     {% for line in insights %}
-      <li class="text-slate-700">• {{ line | safe }}</li>
+      <li class="text-slate-700 dark:text-slate-200">• {{ line | safe }}</li>
     {% endfor %}
   </ul>
 </div>
@@ -97,14 +97,14 @@
 {# ---------- TREEMAP + LISTA DE GASTOS (lado a lado) ---------- #}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
   <div class="card">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">
       Distribución por categoría
-      <span class="text-xs text-slate-400 font-normal normal-case tracking-normal ml-2">(clickeá para filtrar)</span>
+      <span class="text-xs text-slate-400 dark:text-slate-500 font-normal normal-case tracking-normal ml-2">(clickeá para filtrar)</span>
     </h2>
     {{ treemap_html | safe }}
   </div>
 
-  <div id="category-detail" class="overflow-y-auto max-h-[480px] lg:max-h-none lg:overflow-y-auto" style="max-height: 480px;"></div>
+  <div id="category-detail" class="overflow-y-auto max-h-[440px] text-slate-800 dark:text-slate-100"></div>
 </div>
 
 <script>
@@ -127,7 +127,6 @@
         old.replaceWith(ns);
       });
       if (window.htmx) window.htmx.process(target);
-      // Scroll to top of the panel when content changes
       target.scrollTop = 0;
     });
   }
@@ -168,11 +167,11 @@
 {# ---------- TREND 6M + CUOTAS FORECAST ---------- #}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
   <div class="card">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Tendencia 6 meses (ARS)</h2>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Tendencia 6 meses (ARS)</h2>
     {{ trend_html | safe }}
   </div>
   <div class="card">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cuotas — próximos 6 meses</h2>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Cuotas — próximos 6 meses</h2>
     {{ cuotas_html | safe }}
   </div>
 </div>
@@ -180,84 +179,84 @@
 {# ---------- TOP MERCHANTS + GASTOS FIJOS ---------- #}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
   <div class="card lg:col-span-2">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Categorías — este mes vs anterior</h2>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Categorías — este mes vs anterior</h2>
     {% if merchants %}
-    <div class="overflow-x-auto">
-    <table class="w-full text-sm min-w-[400px]">
-      <thead class="text-slate-500 text-xs uppercase border-b border-slate-200 dark:border-slate-700">
+    <table class="w-full text-sm">
+      <thead class="text-slate-500 dark:text-slate-400 text-xs uppercase border-b border-slate-200 dark:border-slate-700">
         <tr>
           <th class="text-left py-2 font-medium">Categoría</th>
           <th class="text-right py-2 font-medium">Este mes</th>
-          <th class="text-right py-2 font-medium">Mes anterior</th>
+          <th class="text-right py-2 font-medium hidden sm:table-cell">Mes anterior</th>
           <th class="text-right py-2 font-medium">Diferencia</th>
         </tr>
       </thead>
       <tbody>
       {% for m in merchants %}
         <tr class="border-b border-slate-100 dark:border-slate-700">
-          <td class="py-2 flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background: {{ m.color }};"></span>
-            <span>{{ m.name }}</span>
+          <td class="py-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background: {{ m.color }};"></span>
+              <span class="break-words">{{ m.name }}</span>
+            </div>
           </td>
-          <td class="text-right font-medium">{{ currency_ars(m.total) }}</td>
-          <td class="text-right text-slate-500">
-            {% if m.prev > 0 %}{{ currency_ars(m.prev) }}{% else %}<span class="text-slate-300">—</span>{% endif %}
+          <td class="text-right font-medium whitespace-nowrap">{{ currency_ars(m.total) }}</td>
+          <td class="text-right text-slate-500 dark:text-slate-400 whitespace-nowrap hidden sm:table-cell">
+            {% if m.prev > 0 %}{{ currency_ars(m.prev) }}{% else %}<span class="text-slate-300 dark:text-slate-600">—</span>{% endif %}
           </td>
-          <td class="text-right text-xs">
+          <td class="text-right text-xs whitespace-nowrap">
             {% if m.delta_pct is not none %}
               {% if m.delta_pct > 0 %}
-                <span class="text-rose-600">↑ {{ fmt_pct(m.delta_pct) }}</span>
+                <span class="text-rose-600 dark:text-rose-400">↑ {{ fmt_pct(m.delta_pct) }}</span>
               {% else %}
-                <span class="text-emerald-600">↓ {{ fmt_pct(m.delta_pct) }}</span>
+                <span class="text-emerald-600 dark:text-emerald-400">↓ {{ fmt_pct(m.delta_pct) }}</span>
               {% endif %}
             {% elif m.prev == 0 and m.total > 0 %}
-              <span class="text-slate-400 text-[10px]">sin anterior</span>
+              <span class="text-slate-400 dark:text-slate-500 text-[10px]">sin anterior</span>
             {% else %}
-              <span class="text-slate-300">—</span>
+              <span class="text-slate-300 dark:text-slate-600">—</span>
             {% endif %}
           </td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
-    </div>
     {% else %}
-      <p class="text-slate-400 text-sm">Sin transacciones este mes.</p>
+      <p class="text-slate-400 dark:text-slate-500 text-sm">Sin transacciones este mes.</p>
     {% endif %}
   </div>
 
   <div class="card">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Gastos fijos</h2>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Gastos fijos</h2>
     {% if fixed %}
       {% set fixed_sum_min = fixed | sum(attribute='expected_amount_min') %}
       {% set fixed_sum_max = fixed | sum(attribute='expected_amount_max') %}
-      <div class="text-2xl font-bold mb-2">{{ currency_ars((fixed_sum_min + fixed_sum_max) / 2) }}
-        <span class="text-xs text-slate-400 font-normal block">estimado mensual</span></div>
+      <div class="text-2xl font-bold mb-2 text-slate-900 dark:text-white">{{ currency_ars((fixed_sum_min + fixed_sum_max) / 2) }}
+        <span class="text-xs text-slate-400 dark:text-slate-500 font-normal block">estimado mensual</span></div>
       <ul class="space-y-1 text-sm">
         {% for f in fixed %}
-          <li class="flex justify-between border-b border-slate-100 py-1">
+          <li class="flex justify-between border-b border-slate-100 dark:border-slate-700 py-1">
             <span class="capitalize">{{ f.normalized_merchant }}</span>
-            <span class="text-slate-500">{{ currency_ars((f.expected_amount_min + f.expected_amount_max) / 2) }}</span>
+            <span class="text-slate-500 dark:text-slate-400">{{ currency_ars((f.expected_amount_min + f.expected_amount_max) / 2) }}</span>
           </li>
         {% endfor %}
       </ul>
     {% else %}
-      <p class="text-slate-400 text-sm">Aún no hay gastos fijos confirmados. Subí más resúmenes para que la detección encuentre patrones.</p>
+      <p class="text-slate-400 dark:text-slate-500 text-sm">Aún no hay gastos fijos confirmados. Subí más resúmenes para que la detección encuentre patrones.</p>
     {% endif %}
 
     {% if suggested %}
       <div class="mt-4">
-        <h3 class="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Sugeridos</h3>
+        <h3 class="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-2">Sugeridos</h3>
         <ul class="space-y-2 text-sm">
           {% for s in suggested %}
-            <li class="flex items-center justify-between gap-2 border-b border-amber-100 py-1">
+            <li class="flex items-center justify-between gap-2 border-b border-amber-100 dark:border-slate-700 py-1">
               <span class="capitalize">{{ s.normalized_merchant }}</span>
-              <span class="text-xs text-slate-400">{{ s.occurrences }}x · ~{{ s.cadence_days }}d</span>
+              <span class="text-xs text-slate-400 dark:text-slate-500">{{ s.occurrences }}x · ~{{ s.cadence_days }}d</span>
               <form method="post" action="/recurring/{{ s.id }}/confirm" class="inline">
-                <button type="submit" class="text-xs text-emerald-600 hover:underline">✓ Confirmar</button>
+                <button type="submit" class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">✓ Confirmar</button>
               </form>
               <form method="post" action="/recurring/{{ s.id }}/reject" class="inline">
-                <button type="submit" class="text-xs text-slate-400 hover:text-rose-500">✗</button>
+                <button type="submit" class="text-xs text-slate-400 dark:text-slate-500 hover:text-rose-500">✗</button>
               </form>
             </li>
           {% endfor %}
@@ -269,7 +268,7 @@
 
 {# ---------- CUENTAS ---------- #}
 <div class="card mb-6">
-  <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cuentas</h2>
+  <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Cuentas</h2>
   <div class="flex flex-wrap gap-3">
     {% for a in accounts %}
       <div class="chip" style="background: {{ a.color }}25; color: {{ a.color }};">

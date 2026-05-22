@@ -5,7 +5,7 @@
 {% set _participants = it.participants or [] %}
 {% set _owed = _participants|sum(attribute='amount_owed') %}
 {% set _my = it.amount - _owed %}
-<tr id="share-form-{{ it.id }}" class="hidden bg-purple-50">
+<tr id="share-form-{{ it.id }}" class="hidden bg-purple-50 dark:bg-purple-950/40">
   <td colspan="{{ _cs }}" class="py-3 px-4">
     <form hx-post="/tx/{{ it.id }}/share"
           hx-target="#tx-row-{{ it.id }}"
@@ -13,26 +13,26 @@
           hx-on::after-request="window.cleanupRow && window.cleanupRow({{ it.id }})"
           class="space-y-2 text-sm">
       <div class="flex items-center gap-2 flex-wrap text-xs">
-        <span class="font-medium text-slate-700">Dividir entre:</span>
+        <span class="font-medium text-slate-700 dark:text-slate-200">Dividir entre:</span>
         {% for n in [2,3,4,5,6,7,8] %}
           <button type="button"
                   class="px-2 py-0.5 text-xs rounded border border-slate-300 bg-white hover:bg-blue-50"
                   onclick="splitFor{{ it.id }}({{ n }})">{{ n }}</button>
         {% endfor %}
-        <span class="text-slate-500">personas</span>
+        <span class="text-slate-500 dark:text-slate-400">personas</span>
         <label class="inline-flex items-center gap-1 ml-3 cursor-pointer select-none">
           <input type="checkbox" id="include-me-{{ it.id }}" checked
                  onchange="splitFor{{ it.id }}()"
                  class="rounded">
-          <span class="text-slate-700 font-medium">me incluyo yo</span>
+          <span class="text-slate-700 dark:text-slate-200 font-medium">me incluyo yo</span>
         </label>
       </div>
       {% if frequent_people is defined and frequent_people %}
       <div class="flex items-center gap-1 flex-wrap text-xs">
-        <span class="text-slate-500">Personas frecuentes:</span>
+        <span class="text-slate-500 dark:text-slate-400">Personas frecuentes:</span>
         {% for name in frequent_people %}
           <button type="button"
-                  class="px-2 py-0.5 rounded-full border border-slate-300 bg-slate-50 hover:bg-blue-50 text-slate-700"
+                  class="px-2 py-0.5 rounded-full border border-slate-300 bg-slate-50 hover:bg-blue-50 text-slate-700 dark:text-slate-200"
                   onclick="addPersonByName{{ it.id }}('{{ name | e }}')">+ {{ name }}</button>
         {% endfor %}
       </div>
@@ -57,7 +57,7 @@
                    value="{{ '%.2f' % p.amount_owed }}"
                    oninput="updateSelf{{ it.id }}()"
                    class="w-28 text-sm rounded border border-slate-300 px-2 py-1" placeholder="0.00">
-            <label class="inline-flex items-center gap-1 text-xs text-slate-700 whitespace-nowrap">
+            <label class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
               <input type="hidden" name="participant_paid" value="0">
               <input type="checkbox" name="participant_paid"
                      value="1" {% if p.paid_back %}checked{% endif %}
@@ -83,7 +83,7 @@
         <div class="ml-auto flex gap-2">
           <button type="button"
                   onclick="document.getElementById('participants-{{ it.id }}').querySelectorAll('.part-row').forEach(r=>r.remove()); updateSelf{{ it.id }}(); document.getElementById('share-form-{{ it.id }}').querySelector('form').requestSubmit()"
-                  class="text-xs text-slate-500 hover:underline">vaciar (todo mío)</button>
+                  class="text-xs text-slate-500 dark:text-slate-400 hover:underline">vaciar (todo mío)</button>
           <button type="button"
                   onclick="document.getElementById('share-form-{{ it.id }}').classList.add('hidden')"
                   class="text-xs text-slate-400 hover:underline">cancelar</button>
@@ -105,7 +105,7 @@
               <input type="number" step="0.01" name="participant_amount" value="${amount.toFixed(2)}"
                      oninput="updateSelf{{ it.id }}()"
                      class="w-28 text-sm rounded border border-slate-300 px-2 py-1" placeholder="0.00">
-              <label class="inline-flex items-center gap-1 text-xs text-slate-700 whitespace-nowrap">
+              <label class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
                 <input type="hidden" name="participant_paid" value="0">
                 <input type="checkbox" name="participant_paid" value="1" ${paid ? 'checked' : ''}
                        class="rounded" onchange="this.previousElementSibling.value=this.checked?'1':'0'">

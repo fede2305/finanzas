@@ -3,7 +3,7 @@
 {% block content %}
 
 <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
-  <h1 class="text-2xl font-bold">Te deben</h1>
+  <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Te deben</h1>
   <div class="flex items-center gap-4 flex-wrap text-sm">
     <a href="?include_paid={{ 0 if include_paid else 1 }}" class="text-blue-600 hover:underline">
       {% if include_paid %}solo pendientes{% else %}también mostrar lo ya pagado{% endif %}
@@ -16,10 +16,10 @@
 </div>
 
 {% if groups %}
-<div class="card mb-6 bg-gradient-to-br from-purple-50 to-rose-50 border border-purple-100">
+<div class="mb-6 rounded-xl p-5 bg-gradient-to-br from-purple-50 to-rose-50 dark:from-slate-800 dark:to-slate-800 border border-purple-100 dark:border-slate-700">
   <div class="flex items-baseline gap-3 flex-wrap">
-    <div class="text-3xl font-bold text-purple-800">{{ currency_ars(total_pending) }}</div>
-    <div class="text-sm text-purple-700">pendientes entre {{ groups|length }} persona{{ 's' if groups|length != 1 else '' }}</div>
+    <div class="text-3xl font-bold text-purple-800 dark:text-purple-300">{{ currency_ars(total_pending) }}</div>
+    <div class="text-sm text-purple-700 dark:text-purple-400">pendientes entre {{ groups|length }} persona{{ 's' if groups|length != 1 else '' }}</div>
   </div>
 </div>
 
@@ -30,11 +30,11 @@
       <div>
         <h2 class="text-lg font-semibold">{{ g.person_name }}</h2>
         <div class="text-sm text-slate-500 mt-0.5 flex flex-wrap gap-x-3">
-          <span class="text-amber-700">⏳ <b>{{ currency_ars(g.total_owed_pending) }}</b></span>
+          <span class="text-amber-700 dark:text-amber-400">⏳ <b>{{ currency_ars(g.total_owed_pending) }}</b></span>
           {% if g.paid_count > 0 %}
-            <span class="text-emerald-700">✓ ya pagó: {{ currency_ars(g.total_owed_paid) }}</span>
+            <span class="text-emerald-700 dark:text-emerald-400">✓ ya pagó: {{ currency_ars(g.total_owed_paid) }}</span>
           {% endif %}
-          <span class="text-slate-400">{{ g.pending_count }} gasto{{ 's' if g.pending_count != 1 else '' }}</span>
+          <span class="text-slate-400 dark:text-slate-500">{{ g.pending_count }} gasto{{ 's' if g.pending_count != 1 else '' }}</span>
         </div>
       </div>
       <a href="/pendientes.csv?person={{ g.person_name | urlencode }}&include_paid={{ 1 if include_paid else 0 }}"
@@ -56,8 +56,8 @@
           <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">{{ tx.posted_at[:10] }}</td>
           <td class="py-2">
             <div class="text-xs text-slate-400 md:hidden">{{ tx.posted_at[:10] }} · {{ tx.bank }} ···{{ tx.card_last4 }}</div>
-            <div class="truncate" title="{{ tx.description_raw }}">{{ tx.description_raw }}</div>
-            <div class="text-xs text-slate-400">de {% if tx.currency=='ARS' %}{{ currency_ars(tx.amount) }}{% else %}{{ currency_usd(tx.amount) }}{% endif %} en total</div>
+            <div class="break-words font-medium" title="{{ tx.description_raw }}">{{ tx.description_raw }}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-500">de {% if tx.currency=='ARS' %}{{ currency_ars(tx.amount) }}{% else %}{{ currency_usd(tx.amount) }}{% endif %} en total</div>
           </td>
           <td class="py-2 text-xs text-slate-500 whitespace-nowrap hidden md:table-cell">{{ tx.bank }} ···{{ tx.card_last4 }}</td>
           <td class="py-2 text-right font-medium whitespace-nowrap">
@@ -66,12 +66,12 @@
           <td class="py-2 text-right whitespace-nowrap">
             <form method="post" action="/participant/{{ tx.id }}/toggle-paid" class="inline">
               {% if tx.paid_back %}
-                <button type="submit" class="text-xs text-emerald-700 hover:underline">
+                <button type="submit" class="text-xs text-emerald-700 dark:text-emerald-400 hover:underline">
                   ✓ {{ tx.paid_back_at[:10] if tx.paid_back_at else '—' }} (deshacer)
                 </button>
               {% else %}
                 <button type="submit"
-                        class="text-xs px-3 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100">
+                        class="text-xs px-3 py-1 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900">
                   marcar pagado
                 </button>
               {% endif %}

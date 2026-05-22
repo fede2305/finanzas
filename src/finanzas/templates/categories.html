@@ -2,21 +2,21 @@
 {% block title %}Categorías · finanzas{% endblock %}
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-6">Categorías</h1>
+<h1 class="text-2xl font-bold mb-6 text-slate-900 dark:text-white">Categorías</h1>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
   <div class="card lg:col-span-1">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Crear nueva</h2>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Crear nueva</h2>
     <form method="post" action="/categories" class="space-y-3">
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">Nombre</label>
+        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Nombre</label>
         <input type="text" name="name" required
-               class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5">
+               class="w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5">
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">Categoría padre (opcional)</label>
+        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Categoría padre (opcional)</label>
         <select name="parent_id"
-                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white">
+                class="w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5 bg-white dark:bg-slate-800">
           <option value="">— Sin padre (categoría top-level) —</option>
           {% for c in tree %}
             <option value="{{ c.id }}">{{ c.name }}</option>
@@ -24,29 +24,29 @@
         </select>
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">Color (hex)</label>
+        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Color (hex)</label>
         <input type="color" name="color" value="#94a3b8"
-               class="w-full h-9 rounded-md border border-slate-300">
+               class="w-full h-9 rounded-md border border-slate-300 dark:border-slate-600">
       </div>
       <button type="submit" class="btn btn-primary w-full">Crear categoría</button>
     </form>
   </div>
 
   <div class="card lg:col-span-2">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Árbol existente</h2>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Árbol existente</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       {% for cat in tree %}
-      <div class="border border-slate-200 rounded-md p-3">
+      <div class="border border-slate-200 dark:border-slate-700 rounded-md p-3">
         <div class="flex items-center gap-2 mb-2">
-          <span class="w-3 h-3 rounded-full" style="background: {{ cat.color }};"></span>
+          <span class="w-3 h-3 rounded-full flex-shrink-0" style="background: {{ cat.color }};"></span>
           <span class="font-semibold text-sm">{{ cat.name }}</span>
-          {% if cat.is_user_created %}<span class="chip bg-slate-100 text-slate-500 text-xs">tuya</span>{% endif %}
+          {% if cat.is_user_created %}<span class="chip bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 text-xs">tuya</span>{% endif %}
         </div>
         {% if cat.subcategories %}
           <ul class="text-xs space-y-0.5 ml-5">
             {% for sub in cat.subcategories %}
-              <li class="text-slate-600">· {{ sub.name }}
-                {% if sub.is_user_created %}<span class="text-slate-400">(tuya)</span>{% endif %}
+              <li class="text-slate-600 dark:text-slate-400">· {{ sub.name }}
+                {% if sub.is_user_created %}<span class="text-slate-400 dark:text-slate-500">(tuya)</span>{% endif %}
               </li>
             {% endfor %}
           </ul>

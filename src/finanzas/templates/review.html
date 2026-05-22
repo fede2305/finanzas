@@ -3,7 +3,7 @@
 {% block content %}
 
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">Review inbox <span class="text-slate-400">({{ items|length }})</span></h1>
+  <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Review inbox <span class="text-slate-400 dark:text-slate-500">({{ items|length }})</span></h1>
   <a href="/" class="btn btn-ghost text-sm">← Volver</a>
 </div>
 
@@ -35,9 +35,9 @@
         <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">{{ it.posted_at[:10] }}</td>
         <td class="py-2">
           <div class="text-xs text-slate-400 md:hidden">{{ it.posted_at[:10] }} · ···{{ it.card_last4 }}</div>
-          <div class="truncate" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
+          <div class="break-words font-medium" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
           {% if is_cuotas %}
-            <div class="text-xs text-amber-700 mt-0.5">
+            <div class="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
               📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
               · total: {% if it.currency == 'USD' %}{{ currency_usd(total_estimado) }}{% else %}{{ currency_ars(total_estimado) }}{% endif %}
             </div>

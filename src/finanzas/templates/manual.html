@@ -2,31 +2,31 @@
 {% block title %}Manuales · finanzas{% endblock %}
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-6">Gastos manuales</h1>
+<h1 class="text-2xl font-bold mb-6 text-slate-900 dark:text-white">Gastos manuales</h1>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
   <div class="card lg:col-span-1">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cargar nuevo</h2>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Cargar nuevo</h2>
     <form method="post" action="/manual" class="space-y-3">
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">Fecha</label>
+        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Fecha</label>
         <input type="date" name="posted_at" required
                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
+        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Descripción</label>
         <input type="text" name="description" required
                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600"
                placeholder="Ej: Alquiler de mayo">
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Monto</label>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Monto</label>
           <input type="number" step="0.01" name="amount" required
                  class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Moneda</label>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Moneda</label>
           <select name="currency" class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
             <option value="ARS">ARS</option>
             <option value="USD">USD</option>
@@ -34,7 +34,7 @@
         </div>
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">Categoría</label>
+        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Categoría</label>
         <select name="category_id" required id="manual-cat"
                 class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600"
                 onchange="updateManualSubs()">
@@ -47,13 +47,13 @@
         </select>
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">Subcategoría</label>
+        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Subcategoría</label>
         <select name="subcategory_id" id="manual-sub"
                 class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
           <option value="">—</option>
         </select>
       </div>
-      <div class="border-t pt-3">
+      <div class="border-t border-slate-200 dark:border-slate-700 pt-3">
         <label class="inline-flex items-center gap-2 text-sm">
           <input type="checkbox" name="is_fixed" value="1" id="is_fixed"
                  onchange="document.getElementById('rrule-box').classList.toggle('hidden', !this.checked)"
@@ -61,7 +61,7 @@
           Es un gasto fijo (recurrente)
         </label>
         <div id="rrule-box" class="hidden mt-2">
-          <label class="block text-xs font-medium text-slate-600 mb-1">Recurrencia (rrule)</label>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Recurrencia (rrule)</label>
           <input type="text" name="recurrence_rule"
                  value="FREQ=MONTHLY;BYMONTHDAY=1"
                  class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
@@ -72,7 +72,7 @@
   </div>
 
   <div class="card lg:col-span-2">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cargados ({{ items|length }})</h2>
+    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Cargados ({{ items|length }})</h2>
     {% if items %}
     <table class="w-full text-sm">
       <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
@@ -90,8 +90,8 @@
         <tr class="border-b border-slate-100 dark:border-slate-700">
           <td class="py-2 text-slate-500 text-xs whitespace-nowrap">{{ m.posted_at }}</td>
           <td class="py-2">
-            <div class="truncate">{{ m.description }}</div>
-            <div class="text-xs text-slate-400 md:hidden">{{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}{% if m.is_fixed %} · fijo{% endif %}</div>
+            <div class="break-words">{{ m.description }}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-500 md:hidden">{{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}{% if m.is_fixed %} · fijo{% endif %}</div>
           </td>
           <td class="py-2 text-xs hidden md:table-cell">
             {{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}
@@ -100,7 +100,7 @@
             {% if m.currency == 'USD' %}{{ currency_usd(m.amount) }}{% else %}{{ currency_ars(m.amount) }}{% endif %}
           </td>
           <td class="py-2 text-xs hidden md:table-cell">
-            {% if m.is_fixed %}<span class="chip bg-blue-50 text-blue-700">fijo</span>{% endif %}
+            {% if m.is_fixed %}<span class="chip bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">fijo</span>{% endif %}
           </td>
           <td class="py-2 text-right">
             <form method="post" action="/manual/{{ m.id }}/delete" class="inline">

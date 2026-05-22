@@ -4,7 +4,7 @@
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
 <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
-  <h1 class="text-2xl font-bold">Cuotas</h1>
+  <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Cuotas</h1>
   <div class="flex items-center gap-2 flex-wrap">
     <form method="get" action="/cuotas" class="inline-flex items-center gap-2">
       <label class="text-sm text-slate-500">Tarjeta:</label>
@@ -43,12 +43,12 @@
 </div>
 
 <div class="card mb-6">
-  <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Compromisos próximos 6 meses (ARS)</h2>
+  <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Compromisos próximos 6 meses (ARS)</h2>
   {{ forecast_html | safe }}
 </div>
 
 <div class="card">
-  <h2 class="text-sm font-semibold mb-3 text-slate-600 uppercase tracking-wide">Cuotas activas ({{ items|length }})</h2>
+  <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Cuotas activas ({{ items|length }})</h2>
   {% if items %}
   <table class="w-full text-sm">
     <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
@@ -56,7 +56,7 @@
         <th class="text-left py-2 font-medium">Descripción</th>
         <th class="text-left py-2 font-medium hidden md:table-cell">Categoría</th>
         <th class="text-left py-2 font-medium hidden md:table-cell">Cuenta</th>
-        <th class="text-center py-2 font-medium">Avance</th>
+        <th class="text-center py-2 font-medium hidden md:table-cell">Avance</th>
         <th class="text-right py-2 font-medium">Cuota</th>
         <th class="text-right py-2 font-medium hidden md:table-cell">Restante</th>
         <th class="text-right py-2 font-medium hidden md:table-cell">Total</th>
@@ -74,10 +74,10 @@
       <tr id="tx-row-{{ it.id }}" class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 align-top">
         <td class="py-2">
           <div class="text-xs text-slate-400 md:hidden">{{ it.category or '—' }} · ···{{ it.card_last4 }}</div>
-          <div class="truncate" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
-          <div class="text-xs text-slate-400">desde {{ it.posted_at[:10] }}</div>
+          <div class="break-words font-medium" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-500">desde {{ it.posted_at[:10] }}</div>
           {% if has_note %}
-            <div class="text-xs text-slate-600 italic mt-0.5">📝 {{ it.notes }}</div>
+            <div class="text-xs text-slate-600 dark:text-slate-300 italic mt-0.5 break-words">📝 {{ it.notes }}</div>
           {% endif %}
           {% if has_participants %}
             <div class="mt-1.5 flex flex-wrap gap-1">
@@ -99,7 +99,7 @@
             </div>
           {% endif %}
           <div class="md:hidden mt-1.5 flex items-center gap-2">
-            <div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div class="flex-1 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
               <div class="h-full bg-purple-500" style="width: {{ pct }}%"></div>
             </div>
             <span class="text-xs text-slate-500">{{ it.installment_current }}/{{ it.installment_total }}</span>
@@ -111,7 +111,7 @@
         <td class="py-2 text-xs text-slate-500 whitespace-nowrap hidden md:table-cell">···{{ it.card_last4 }}</td>
         <td class="py-2 w-32 hidden md:table-cell">
           <div class="flex items-center gap-2">
-            <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
               <div class="h-full bg-purple-500" style="width: {{ pct }}%"></div>
             </div>
             <div class="text-xs text-slate-500 whitespace-nowrap">{{ it.installment_current }}/{{ it.installment_total }}</div>

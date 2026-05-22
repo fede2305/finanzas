@@ -2,24 +2,24 @@
 {% block title %}Buscar · finanzas{% endblock %}
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-6">Buscar gastos</h1>
+<h1 class="text-2xl font-bold mb-6 text-slate-900 dark:text-white">Buscar gastos</h1>
 
 <div class="card mb-6">
   <form method="get" action="/buscar" class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
     <div class="md:col-span-2">
-      <label class="block text-xs font-medium text-slate-600 mb-1">Descripción contiene</label>
+      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Descripción contiene</label>
       <input type="text" name="q" value="{{ q }}"
              placeholder="netflix, carrefour, vivi..."
              class="w-full text-sm rounded-md border border-slate-300 px-3 py-2">
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-600 mb-1">Monto aprox.</label>
+      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Monto aprox.</label>
       <input type="text" name="amount" value="{{ amount }}"
              placeholder="1000 o 18.000"
              class="w-full text-sm rounded-md border border-slate-300 px-3 py-2">
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-600 mb-1">Tolerancia</label>
+      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tolerancia</label>
       <select name="tolerance" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
         {% for t in [5, 10, 20, 50] %}
           <option value="{{ t }}" {% if tolerance == t %}selected{% endif %}>±{{ t }}%</option>
@@ -27,7 +27,7 @@
       </select>
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-600 mb-1">Moneda</label>
+      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Moneda</label>
       <select name="currency" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
         <option value="" {% if not currency %}selected{% endif %}>Ambas</option>
         <option value="ARS" {% if currency == 'ARS' %}selected{% endif %}>ARS</option>
@@ -35,7 +35,7 @@
       </select>
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-600 mb-1">Tarjeta</label>
+      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tarjeta</label>
       <select name="account" class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 bg-white">
         <option value="all" {% if account_param == 'all' %}selected{% endif %}>Todas</option>
         {% for a in accounts %}
@@ -91,7 +91,7 @@
             <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">{{ it.posted_at[:10] }}</td>
             <td class="py-2">
               <div class="text-xs text-slate-400 md:hidden">{{ it.posted_at[:10] }} · {{ it.category or '—' }} · {{ it.bank }} ···{{ it.card_last4 }}</div>
-              <div class="truncate" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
+              <div class="break-words font-medium" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
               {% if is_cuotas %}
                 <div class="text-xs text-amber-700 mt-0.5">
                   📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
@@ -99,7 +99,7 @@
                 </div>
               {% endif %}
               {% if has_note %}
-                <div class="text-xs text-slate-600 italic mt-0.5">📝 {{ it.notes }}</div>
+                <div class="text-xs text-slate-600 dark:text-slate-300 italic mt-0.5 break-words">📝 {{ it.notes }}</div>
               {% endif %}
               {% if has_participants %}
                 <div class="mt-1.5 flex flex-wrap gap-1">
