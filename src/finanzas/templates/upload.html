@@ -77,8 +77,12 @@
         });
 
         if (!uploadResp.ok) {
-          const err = await uploadResp.json();
-          throw new Error(err.detail || `Upload failed: ${uploadResp.status}`);
+          let errMsg = `Upload failed: ${uploadResp.status}`;
+          try {
+            const err = await uploadResp.json();
+            errMsg = err.detail || err.error || errMsg;
+          } catch (_) {}
+          throw new Error(errMsg);
         }
 
         const data = await uploadResp.json();

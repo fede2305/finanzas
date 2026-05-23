@@ -36,8 +36,8 @@ async def lifespan(_app: FastAPI):
     async def process_uploads_loop():
         while True:
             try:
-                with db.connect() as conn:
-                    upload_worker.start_processing_pending()
+                # Run blocking DB work in a thread to not block event loop
+                await asyncio.to_thread(upload_worker.start_processing_pending)
             except Exception as e:
                 print(f"Error processing uploads: {e}")
             await asyncio.sleep(5)  # Check every 5 seconds
@@ -351,7 +351,7 @@ async def upload_api(
         if total_files and len(files_data) >= total_files:
             with db.connect() as conn:
                 cur = conn.execute(
-                    """UPDATE upload_jobs SET status = 'pending'
+                    """UPDATE upload_jobs SET status = 'pending', stage = 'processing'
                        WHERE id = %s AND status = 'uploading' RETURNING id""",
                     (job_id,),
                 )
@@ -371,8 +371,9 @@ async def upload_api(
 
 async def _process_upload_async(job_id: int) -> None:
     """Background task to process upload job."""
-    with db.connect() as conn:
-        upload_worker.process_upload_job(conn, job_id)
+    import asyncio
+    # Run blocking DB work in a thread to not block event loop
+    await asyncio.to_thread(upload_worker.process_upload_job, job_id)
 
 
 @app.get("/api/upload-status/{job_id}")
