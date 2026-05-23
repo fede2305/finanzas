@@ -234,14 +234,40 @@
         <span class="text-xs text-slate-400 dark:text-slate-500 font-normal block">estimado mensual</span></div>
       <ul class="space-y-1 text-sm">
         {% for f in fixed %}
-          <li class="flex justify-between border-b border-slate-100 dark:border-slate-700 py-1">
-            <span class="capitalize">{{ f.normalized_merchant }}</span>
-            <span class="text-slate-500 dark:text-slate-400">{{ currency_ars((f.expected_amount_min + f.expected_amount_max) / 2) }}</span>
+          <li class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 py-1 group">
+            <span class="capitalize flex-1 truncate">{{ f.normalized_merchant }}</span>
+            <span class="text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ currency_ars((f.expected_amount_min + f.expected_amount_max) / 2) }}</span>
+            <form method="post" action="/recurring/{{ f.id }}/delete" class="inline"
+                  onsubmit="return confirm('¿Eliminar gasto fijo &quot;{{ f.normalized_merchant }}&quot;? Podés reconfirmarlo después si lo necesitás.');">
+              <button type="submit" title="Eliminar gasto fijo"
+                      class="text-slate-300 dark:text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs px-1">✗</button>
+            </form>
           </li>
         {% endfor %}
       </ul>
     {% else %}
       <p class="text-slate-400 dark:text-slate-500 text-sm">Aún no hay gastos fijos confirmados. Subí más resúmenes para que la detección encuentre patrones.</p>
+    {% endif %}
+
+    {% if cross_suggested %}
+      <div class="mt-4">
+        <h3 class="text-xs font-semibold text-sky-700 dark:text-sky-400 uppercase tracking-wide mb-2"
+            title="Otros usuarios marcaron estos comercios como fijos. Aparecen porque vos también los tenés.">
+          Otros usuarios marcaron como fijos
+        </h3>
+        <ul class="space-y-2 text-sm">
+          {% for x in cross_suggested %}
+            <li class="flex items-center justify-between gap-2 border-b border-sky-100 dark:border-slate-700 py-1">
+              <span class="capitalize flex-1 truncate">{{ x.normalized_merchant }}</span>
+              <span class="text-xs text-slate-400 dark:text-slate-500">{{ x.users_count }} user{{ '' if x.users_count == 1 else 's' }}</span>
+              <form method="post" action="/recurring/adopt" class="inline">
+                <input type="hidden" name="normalized_merchant" value="{{ x.normalized_merchant }}">
+                <button type="submit" class="text-xs text-sky-600 dark:text-sky-400 hover:underline">+ Adoptar</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
     {% endif %}
 
     {% if suggested %}

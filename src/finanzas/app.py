@@ -223,6 +223,7 @@ def dashboard(request: Request, month: str | None = None, account: str | None = 
         cuotas = queries.cuotas_forecast(conn, user_id, anchor, 6, "ARS", account_id=account_id)
         fixed = queries.confirmed_recurring(conn, user_id)
         suggested = queries.suggested_recurring(conn, user_id)
+        cross_suggested = queries.cross_user_suggested_fixed(conn, user_id)
         ins = insights.generate(conn, anchor, user_id)
         uncat_count = queries.uncategorized_count(conn, user_id)
         accounts = queries.all_accounts(conn, user_id)
@@ -258,6 +259,7 @@ def dashboard(request: Request, month: str | None = None, account: str | None = 
             "merchants": merchants,
             "fixed": fixed,
             "suggested": suggested,
+            "cross_suggested": cross_suggested,
             "insights": ins,
             "uncat_count": uncat_count,
             "accounts": accounts,
@@ -1136,6 +1138,56 @@ def recurring_reject(request: Request, gid: int):
     with db.connect() as conn:
         conn.execute(
             "UPDATE recurring_groups SET status = 'rejected' WHERE id = %s AND user_id = %s",
+            (gid, user_id),
+        )
+    return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/recurring/adopt")
+def recurring_adopt(request: Request, normalized_merchant: str = Form(...)):
+    """Adopta una sugerencia cross-user: crea recurring_group propio (status=suggested)
+    para que el user la confirme con datos propios."""
+    user = auth.require_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    user_id: str = user["sub"]
+
+    key = (normalized_merchant or "").strip().lower()
+    if not key:
+        raise HTTPException(400, "Merchant vacío")
+
+    with db.connect() as conn:
+        existing = conn.execute(
+            "SELECT id FROM recurring_groups WHERE user_id = %s AND normalized_merchant = %s",
+            (user_id, key),
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                """INSERT INTO recurring_groups
+                   (user_id, normalized_merchant, status, occurrences)
+                   VALUES (%s, %s, 'suggested', 0)""",
+                (user_id, key),
+            )
+        from finanzas.recurring import recompute
+        recompute(conn, user_id)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/recurring/{gid}/delete")
+def recurring_delete(request: Request, gid: int):
+    user = auth.require_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    user_id: str = user["sub"]
+
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE transactions SET recurring_group_id = NULL "
+            "WHERE recurring_group_id = %s AND user_id = %s",
+            (gid, user_id),
+        )
+        conn.execute(
+            "DELETE FROM recurring_groups WHERE id = %s AND user_id = %s",
             (gid, user_id),
         )
     return RedirectResponse(url="/", status_code=303)

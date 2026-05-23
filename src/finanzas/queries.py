@@ -361,24 +361,34 @@ def monthly_trend(conn, user_id: str, anchor: date, months: int = 6,
 
 def cuotas_pending_detail(conn, user_id: str,
                           account_id: int | None = None) -> list[dict]:
-    sql = """SELECT t.id, t.posted_at, t.description_raw, t.amount, t.currency,
-                    t.notes,
-                    t.installment_current, t.installment_total,
-                    a.bank, a.card_last4,
-                    c.name AS category, s.name AS subcategory
-             FROM transactions t
-             JOIN accounts a ON a.id = t.account_id
-             LEFT JOIN categories c ON c.id = t.category_id
-             LEFT JOIN categories s ON s.id = t.subcategory_id
-             WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
-               AND t.installment_total > t.installment_current
-               AND t.amount > 0
-               AND t.user_id = %s"""
+    # DISTINCT ON dedupea misma compra que aparece en varios resúmenes con
+    # distinto installment_current. Tomamos la fila con el current más alto
+    # (cuota más reciente vista). Sin esto se multi-cuenta la deuda.
+    sql = """SELECT * FROM (
+               SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
+                                   t.description_normalized, t.installment_total)
+                      t.id, t.posted_at, t.description_raw, t.amount, t.currency,
+                      t.notes,
+                      t.installment_current, t.installment_total,
+                      a.bank, a.card_last4,
+                      c.name AS category, s.name AS subcategory
+               FROM transactions t
+               JOIN accounts a ON a.id = t.account_id
+               LEFT JOIN categories c ON c.id = t.category_id
+               LEFT JOIN categories s ON s.id = t.subcategory_id
+               WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
+                 AND t.installment_total > t.installment_current
+                 AND t.amount > 0
+                 AND t.user_id = %s"""
     params: list = [user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
-    sql += " ORDER BY (t.installment_total - t.installment_current) * t.amount DESC"
+    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
+                        t.description_normalized, t.installment_total,
+                        t.installment_current DESC
+             ) dedup
+             ORDER BY (installment_total - installment_current) * amount DESC"""
     rows = conn.execute(sql, params).fetchall()
     out = []
     for r in rows:
@@ -408,17 +418,26 @@ def cuotas_pending_detail(conn, user_id: str,
 
 def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                          account_id: int | None = None) -> tuple[float, int]:
-    sql = """SELECT SUM(t.amount * (t.installment_total - t.installment_current)) AS total,
+    # Dedupe por compra (ver cuotas_pending_detail).
+    sql = """SELECT SUM(amount * (installment_total - installment_current)) AS total,
                     COUNT(*) AS n
-             FROM transactions t
-             WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
-               AND t.installment_total > t.installment_current
-               AND t.amount > 0 AND t.currency = %s
-               AND t.user_id = %s"""
+             FROM (
+               SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
+                                   t.description_normalized, t.installment_total)
+                      t.amount, t.installment_current, t.installment_total
+               FROM transactions t
+               WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
+                 AND t.installment_total > t.installment_current
+                 AND t.amount > 0 AND t.currency = %s
+                 AND t.user_id = %s"""
     params: list = [currency, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
+    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
+                        t.description_normalized, t.installment_total,
+                        t.installment_current DESC
+             ) dedup"""
     row = conn.execute(sql, params).fetchone()
     return float(row[0] or 0), int(row[1] or 0)
 
@@ -445,16 +464,23 @@ def cuotas_this_month(conn, user_id: str, day_of_month: date,
 def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
                     currency: str = "ARS",
                     account_id: int | None = None) -> list[tuple[str, float]]:
-    sql = """SELECT amount, installment_current, installment_total
+    # Dedupe por compra (la misma compra en cuotas aparece N veces a lo largo
+    # de N resúmenes). Sin dedupe el forecast multi-cuenta cada cuota.
+    sql = """SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
+                                 t.description_normalized, t.installment_total)
+                    t.amount, t.installment_current, t.installment_total
              FROM transactions t
-             WHERE installment_total IS NOT NULL AND installment_current IS NOT NULL
-               AND installment_total > installment_current
-               AND amount > 0 AND currency = %s
-               AND user_id = %s"""
+             WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
+               AND t.installment_total > t.installment_current
+               AND t.amount > 0 AND t.currency = %s
+               AND t.user_id = %s"""
     params: list = [currency, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
+    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
+                        t.description_normalized, t.installment_total,
+                        t.installment_current DESC"""
     rows = conn.execute(sql, params).fetchall()
     buckets: dict[str, float] = defaultdict(float)
     start_month = add_months(anchor.replace(day=1), 1)
@@ -480,6 +506,43 @@ def confirmed_recurring(conn, user_id: str) -> list[dict]:
            WHERE g.status = 'confirmed' AND g.user_id = %s
            ORDER BY (g.expected_amount_min + g.expected_amount_max) DESC""",
         (user_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def cross_user_suggested_fixed(conn, user_id: str, limit: int = 20) -> list[dict]:
+    """Merchants que otros users confirmaron como fijos y aparecen en las
+    transacciones de este user, pero este user no los tiene en recurring_groups."""
+    from finanzas.recurring import recurring_merchant_key
+
+    rows = conn.execute(
+        "SELECT DISTINCT description_raw FROM transactions "
+        "WHERE user_id = %s AND amount > 0",
+        (user_id,),
+    ).fetchall()
+    user_keys = {recurring_merchant_key(r["description_raw"]) for r in rows}
+    user_keys.discard("")
+    if not user_keys:
+        return []
+
+    own = {r["normalized_merchant"] for r in conn.execute(
+        "SELECT normalized_merchant FROM recurring_groups WHERE user_id = %s",
+        (user_id,),
+    ).fetchall()}
+
+    candidates = list(user_keys - own)
+    if not candidates:
+        return []
+
+    rows = conn.execute(
+        """SELECT normalized_merchant, COUNT(DISTINCT user_id) AS users_count
+           FROM recurring_groups
+           WHERE status = 'confirmed' AND user_id != %s
+             AND normalized_merchant = ANY(%s)
+           GROUP BY normalized_merchant
+           ORDER BY users_count DESC, normalized_merchant
+           LIMIT %s""",
+        (user_id, candidates, limit),
     ).fetchall()
     return [dict(r) for r in rows]
 
