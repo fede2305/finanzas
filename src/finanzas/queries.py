@@ -359,6 +359,27 @@ def monthly_trend(conn, user_id: str, anchor: date, months: int = 6,
 # ----------------- Cuotas forecast -----------------
 
 
+def _is_likely_closed(it: dict, grace_days: int = 45) -> bool:
+    """¿La compra debería haber terminado ya según la cadencia mensual?
+
+    Cuotas se cobran 1 por resumen mensual. Si la última cuota vista fue
+    cuota X y faltan (total-X) cuotas, la última cuota estimada cae
+    (total-X) meses después de la última vista. Si pasaron más de
+    `grace_days` desde esa fecha, asumimos compra cerrada (el sistema
+    nunca ingestó las cuotas finales).
+    """
+    from datetime import timedelta as _td
+    try:
+        last = datetime.fromisoformat(it["posted_at"]).date()
+    except (KeyError, TypeError, ValueError):
+        return False
+    remaining = (it.get("installment_total") or 0) - (it.get("installment_current") or 0)
+    if remaining <= 0:
+        return True
+    final = add_months(last, remaining)
+    return date.today() > final + _td(days=grace_days)
+
+
 def _is_fully_refunded(conn, user_id: str, it: dict, tolerance: float = 0.10) -> bool:
     """¿Existe una tx negativa cuyo monto ≈ total de la compra Y matchea el
     mismo merchant (por comprobante o por todos los tokens del description)?
@@ -437,6 +458,8 @@ def cuotas_pending_detail(conn, user_id: str,
     out = []
     for r in rows:
         d = dict(r)
+        if _is_likely_closed(d):
+            continue  # cuotas finales estimadas ya pasaron — compra cerrada
         if _is_fully_refunded(conn, user_id, d):
             continue  # compra anulada / reembolsada
         remaining = r["installment_total"] - r["installment_current"]
@@ -467,13 +490,13 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                          account_id: int | None = None) -> tuple[float, int]:
     # Dedupe por compra + filtro de reembolsos totales.
     sql = """SELECT amount, installment_current, installment_total,
-                    comprobante, description_normalized, currency
+                    comprobante, description_normalized, currency, posted_at
              FROM (
                SELECT DISTINCT ON (t.account_id,
                                    CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
                                    t.installment_total)
                       t.amount, t.installment_current, t.installment_total,
-                      t.comprobante, t.description_normalized, t.currency
+                      t.comprobante, t.description_normalized, t.currency, t.posted_at
                FROM transactions t
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
                  AND t.amount > 0 AND t.currency = %s
@@ -492,7 +515,10 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
     total = 0.0
     n = 0
     for r in rows:
-        if _is_fully_refunded(conn, user_id, dict(r)):
+        d = dict(r)
+        if _is_likely_closed(d):
+            continue
+        if _is_fully_refunded(conn, user_id, d):
             continue
         total += float(r["amount"]) * (r["installment_total"] - r["installment_current"])
         n += 1
@@ -524,13 +550,13 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
     # Dedupe por compra: la cuota más reciente vista determina cuántas
     # quedan. Robusto a statements duplicados.
     sql = """SELECT amount, installment_current, installment_total,
-                    comprobante, description_normalized, currency
+                    comprobante, description_normalized, currency, posted_at
              FROM (
                SELECT DISTINCT ON (t.account_id,
                                    CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
                                    t.installment_total)
                       t.amount, t.installment_current, t.installment_total,
-                      t.comprobante, t.description_normalized, t.currency
+                      t.comprobante, t.description_normalized, t.currency, t.posted_at
                FROM transactions t
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
                  AND t.amount > 0 AND t.currency = %s
@@ -549,13 +575,24 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
     buckets: dict[str, float] = defaultdict(float)
     start_month = add_months(anchor.replace(day=1), 1)
     months_list = [add_months(start_month, i) for i in range(months)]
+    month_labels = {m.strftime("%b'%y") for m in months_list}
     for r in rows:
-        if _is_fully_refunded(conn, user_id, dict(r)):
+        d = dict(r)
+        if _is_likely_closed(d):
+            continue
+        if _is_fully_refunded(conn, user_id, d):
+            continue
+        try:
+            last_seen = datetime.fromisoformat(r["posted_at"]).date().replace(day=1)
+        except (TypeError, ValueError):
             continue
         remaining = (r["installment_total"] or 0) - (r["installment_current"] or 0)
-        for i in range(min(remaining, months)):
-            m = months_list[i]
-            buckets[m.strftime("%b'%y")] += r["amount"]
+        # Cada cuota futura cae en (last_seen + i meses) para i=1..remaining
+        for i in range(1, remaining + 1):
+            cuota_month = add_months(last_seen, i)
+            label = cuota_month.strftime("%b'%y")
+            if label in month_labels:
+                buckets[label] += r["amount"]
     return [(m.strftime("%b'%y"), buckets.get(m.strftime("%b'%y"), 0.0)) for m in months_list]
 
 
