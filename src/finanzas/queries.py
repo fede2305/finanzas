@@ -377,7 +377,8 @@ def _is_likely_closed(it: dict, grace_days: int = 45) -> bool:
         return False
     remaining = (it.get("installment_total") or 0) - (it.get("installment_current") or 0)
     # final = fecha esperada de la última cuota (= anchor si remaining=0).
-    final = add_months(last, max(remaining, 0))
+    # Usar timedelta-aproximación (~30 días/mes) porque add_months pierde el día.
+    final = last + _td(days=30 * max(remaining, 0))
     return date.today() > final + _td(days=grace_days)
 
 
