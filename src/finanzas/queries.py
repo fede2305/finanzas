@@ -362,16 +362,18 @@ def monthly_trend(conn, user_id: str, anchor: date, months: int = 6,
 def _is_likely_closed(it: dict, grace_days: int = 45) -> bool:
     """¿La compra debería haber terminado ya según la cadencia mensual?
 
-    Cuotas se cobran 1 por resumen mensual. Si la última cuota vista fue
-    cuota X y faltan (total-X) cuotas, la última cuota estimada cae
-    (total-X) meses después de la última vista. Si pasaron más de
-    `grace_days` desde esa fecha, asumimos compra cerrada (el sistema
-    nunca ingestó las cuotas finales).
+    Anchor = period_end del statement donde apareció la última cuota vista
+    (NO el posted_at que es la fecha de la compra original). Si la última
+    cuota vista fue X y faltan (total-X) cuotas, la última cuota cae
+    (total-X) meses después de ese period_end. Si pasaron más de
+    `grace_days` desde esa fecha, asumimos compra cerrada (sistema nunca
+    ingestó los resúmenes posteriores).
     """
     from datetime import timedelta as _td
+    anchor_str = it.get("stmt_period_end") or it.get("posted_at")
     try:
-        last = datetime.fromisoformat(it["posted_at"]).date()
-    except (KeyError, TypeError, ValueError):
+        last = datetime.fromisoformat(anchor_str).date()
+    except (TypeError, ValueError):
         return False
     remaining = (it.get("installment_total") or 0) - (it.get("installment_current") or 0)
     if remaining <= 0:
@@ -434,10 +436,12 @@ def cuotas_pending_detail(conn, user_id: str,
                       t.amount, t.currency,
                       t.notes,
                       t.installment_current, t.installment_total,
+                      st.period_end AS stmt_period_end,
                       a.bank, a.card_last4,
                       c.name AS category, s.name AS subcategory
                FROM transactions t
                JOIN accounts a ON a.id = t.account_id
+               JOIN statements st ON st.id = t.statement_id
                LEFT JOIN categories c ON c.id = t.category_id
                LEFT JOIN categories s ON s.id = t.subcategory_id
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
@@ -450,7 +454,7 @@ def cuotas_pending_detail(conn, user_id: str,
     sql += """ ORDER BY t.account_id,
                         CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
                         t.installment_total,
-                        t.installment_current DESC, t.posted_at DESC
+                        t.installment_current DESC, st.period_end DESC, t.posted_at DESC
              ) dedup
              WHERE installment_total > installment_current
              ORDER BY (installment_total - installment_current) * amount DESC"""
@@ -490,14 +494,17 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                          account_id: int | None = None) -> tuple[float, int]:
     # Dedupe por compra + filtro de reembolsos totales.
     sql = """SELECT amount, installment_current, installment_total,
-                    comprobante, description_normalized, currency, posted_at
+                    comprobante, description_normalized, currency, posted_at,
+                    stmt_period_end
              FROM (
                SELECT DISTINCT ON (t.account_id,
                                    CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
                                    t.installment_total)
                       t.amount, t.installment_current, t.installment_total,
-                      t.comprobante, t.description_normalized, t.currency, t.posted_at
+                      t.comprobante, t.description_normalized, t.currency, t.posted_at,
+                      st.period_end AS stmt_period_end
                FROM transactions t
+               JOIN statements st ON st.id = t.statement_id
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
                  AND t.amount > 0 AND t.currency = %s
                  AND t.user_id = %s"""
@@ -508,7 +515,7 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
     sql += """ ORDER BY t.account_id,
                         CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
                         t.installment_total,
-                        t.installment_current DESC, t.posted_at DESC
+                        t.installment_current DESC, st.period_end DESC, t.posted_at DESC
              ) dedup
              WHERE installment_total > installment_current"""
     rows = conn.execute(sql, params).fetchall()
@@ -550,14 +557,17 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
     # Dedupe por compra: la cuota más reciente vista determina cuántas
     # quedan. Robusto a statements duplicados.
     sql = """SELECT amount, installment_current, installment_total,
-                    comprobante, description_normalized, currency, posted_at
+                    comprobante, description_normalized, currency, posted_at,
+                    stmt_period_end
              FROM (
                SELECT DISTINCT ON (t.account_id,
                                    CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
                                    t.installment_total)
                       t.amount, t.installment_current, t.installment_total,
-                      t.comprobante, t.description_normalized, t.currency, t.posted_at
+                      t.comprobante, t.description_normalized, t.currency, t.posted_at,
+                      st.period_end AS stmt_period_end
                FROM transactions t
+               JOIN statements st ON st.id = t.statement_id
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
                  AND t.amount > 0 AND t.currency = %s
                  AND t.user_id = %s"""
@@ -568,7 +578,7 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
     sql += """ ORDER BY t.account_id,
                         CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
                         t.installment_total,
-                        t.installment_current DESC, t.posted_at DESC
+                        t.installment_current DESC, st.period_end DESC, t.posted_at DESC
              ) dedup
              WHERE installment_total > installment_current"""
     rows = conn.execute(sql, params).fetchall()
@@ -582,12 +592,14 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
             continue
         if _is_fully_refunded(conn, user_id, d):
             continue
+        # Anchor del forecast = period_end del statement de la última cuota
+        # vista (no posted_at — que es la fecha de compra original).
+        anchor_str = r["stmt_period_end"] or r["posted_at"]
         try:
-            last_seen = datetime.fromisoformat(r["posted_at"]).date().replace(day=1)
+            last_seen = datetime.fromisoformat(anchor_str).date().replace(day=1)
         except (TypeError, ValueError):
             continue
         remaining = (r["installment_total"] or 0) - (r["installment_current"] or 0)
-        # Cada cuota futura cae en (last_seen + i meses) para i=1..remaining
         for i in range(1, remaining + 1):
             cuota_month = add_months(last_seen, i)
             label = cuota_month.strftime("%b'%y")
