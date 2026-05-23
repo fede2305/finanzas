@@ -361,34 +361,34 @@ def monthly_trend(conn, user_id: str, anchor: date, months: int = 6,
 
 def cuotas_pending_detail(conn, user_id: str,
                           account_id: int | None = None) -> list[dict]:
-    # DISTINCT ON dedupea misma compra que aparece en varios resúmenes con
-    # distinto installment_current. Tomamos la fila con el current más alto
-    # (cuota más reciente vista). Sin esto se multi-cuenta la deuda.
-    sql = """SELECT * FROM (
-               SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
-                                   t.description_normalized, t.installment_total)
-                      t.id, t.posted_at, t.description_raw, t.amount, t.currency,
-                      t.notes,
-                      t.installment_current, t.installment_total,
-                      a.bank, a.card_last4,
-                      c.name AS category, s.name AS subcategory
-               FROM transactions t
-               JOIN accounts a ON a.id = t.account_id
-               LEFT JOIN categories c ON c.id = t.category_id
-               LEFT JOIN categories s ON s.id = t.subcategory_id
-               WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
-                 AND t.installment_total > t.installment_current
-                 AND t.amount > 0
-                 AND t.user_id = %s"""
-    params: list = [user_id]
+    # Solo cuotas que aparecen en el ÚLTIMO resumen de cada cuenta. Si una
+    # compra desaparece del último statement (cancelación, pago anticipado),
+    # ya no figura como pendiente.
+    sql = """WITH latest_stmt AS (
+               SELECT DISTINCT ON (account_id) id, account_id
+               FROM statements
+               WHERE user_id = %s
+               ORDER BY account_id, period_end DESC, id DESC
+             )
+             SELECT t.id, t.posted_at, t.description_raw, t.amount, t.currency,
+                    t.notes,
+                    t.installment_current, t.installment_total,
+                    a.bank, a.card_last4,
+                    c.name AS category, s.name AS subcategory
+             FROM transactions t
+             JOIN latest_stmt ls ON ls.id = t.statement_id
+             JOIN accounts a ON a.id = t.account_id
+             LEFT JOIN categories c ON c.id = t.category_id
+             LEFT JOIN categories s ON s.id = t.subcategory_id
+             WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
+               AND t.installment_total > t.installment_current
+               AND t.amount > 0
+               AND t.user_id = %s"""
+    params: list = [user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
-    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
-                        t.description_normalized, t.installment_total,
-                        t.installment_current DESC
-             ) dedup
-             ORDER BY (installment_total - installment_current) * amount DESC"""
+    sql += " ORDER BY (t.installment_total - t.installment_current) * t.amount DESC"
     rows = conn.execute(sql, params).fetchall()
     out = []
     for r in rows:
@@ -418,26 +418,25 @@ def cuotas_pending_detail(conn, user_id: str,
 
 def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                          account_id: int | None = None) -> tuple[float, int]:
-    # Dedupe por compra (ver cuotas_pending_detail).
-    sql = """SELECT SUM(amount * (installment_total - installment_current)) AS total,
+    # Solo cuotas del último statement por cuenta (ver cuotas_pending_detail).
+    sql = """WITH latest_stmt AS (
+               SELECT DISTINCT ON (account_id) id, account_id
+               FROM statements
+               WHERE user_id = %s
+               ORDER BY account_id, period_end DESC, id DESC
+             )
+             SELECT COALESCE(SUM(t.amount * (t.installment_total - t.installment_current)), 0) AS total,
                     COUNT(*) AS n
-             FROM (
-               SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
-                                   t.description_normalized, t.installment_total)
-                      t.amount, t.installment_current, t.installment_total
-               FROM transactions t
-               WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
-                 AND t.installment_total > t.installment_current
-                 AND t.amount > 0 AND t.currency = %s
-                 AND t.user_id = %s"""
-    params: list = [currency, user_id]
+             FROM transactions t
+             JOIN latest_stmt ls ON ls.id = t.statement_id
+             WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
+               AND t.installment_total > t.installment_current
+               AND t.amount > 0 AND t.currency = %s
+               AND t.user_id = %s"""
+    params: list = [user_id, currency, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
-    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
-                        t.description_normalized, t.installment_total,
-                        t.installment_current DESC
-             ) dedup"""
     row = conn.execute(sql, params).fetchone()
     return float(row[0] or 0), int(row[1] or 0)
 
@@ -464,23 +463,24 @@ def cuotas_this_month(conn, user_id: str, day_of_month: date,
 def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
                     currency: str = "ARS",
                     account_id: int | None = None) -> list[tuple[str, float]]:
-    # Dedupe por compra (la misma compra en cuotas aparece N veces a lo largo
-    # de N resúmenes). Sin dedupe el forecast multi-cuenta cada cuota.
-    sql = """SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
-                                 t.description_normalized, t.installment_total)
-                    t.amount, t.installment_current, t.installment_total
+    # Solo cuotas del último statement por cuenta (estado actual).
+    sql = """WITH latest_stmt AS (
+               SELECT DISTINCT ON (account_id) id, account_id
+               FROM statements
+               WHERE user_id = %s
+               ORDER BY account_id, period_end DESC, id DESC
+             )
+             SELECT t.amount, t.installment_current, t.installment_total
              FROM transactions t
+             JOIN latest_stmt ls ON ls.id = t.statement_id
              WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
                AND t.installment_total > t.installment_current
                AND t.amount > 0 AND t.currency = %s
                AND t.user_id = %s"""
-    params: list = [currency, user_id]
+    params: list = [user_id, currency, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
-    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
-                        t.description_normalized, t.installment_total,
-                        t.installment_current DESC"""
     rows = conn.execute(sql, params).fetchall()
     buckets: dict[str, float] = defaultdict(float)
     start_month = add_months(anchor.replace(day=1), 1)
@@ -491,6 +491,39 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
             m = months_list[i]
             buckets[m.strftime("%b'%y")] += r["amount"]
     return [(m.strftime("%b'%y"), buckets.get(m.strftime("%b'%y"), 0.0)) for m in months_list]
+
+
+def cuotas_history(conn, user_id: str, anchor: date, months_back: int = 6,
+                   currency: str = "ARS",
+                   account_id: int | None = None) -> list[tuple[str, float]]:
+    """Cuánto se pagó en cuotas en cada uno de los últimos N meses (incluyendo anchor).
+
+    Basado en statements.period_end. Los meses se etiquetan por el statement
+    correspondiente (no hace dedupe — cada statement aporta su cuota mensual).
+    """
+    end_month = anchor.replace(day=1)
+    start_month = add_months(end_month, -(months_back - 1))
+    start_str = start_month.isoformat()
+    # range_end exclusivo: primer día del mes siguiente al anchor
+    range_end = add_months(end_month, 1).isoformat()
+
+    sql = """SELECT SUBSTRING(st.period_end, 1, 7) AS ym,
+                    COALESCE(SUM(t.amount), 0) AS total
+             FROM transactions t
+             JOIN statements st ON st.id = t.statement_id
+             WHERE st.period_end >= %s AND st.period_end < %s
+               AND t.installment_total IS NOT NULL
+               AND t.amount > 0 AND t.currency = %s
+               AND t.user_id = %s"""
+    params: list = [start_str, range_end, currency, user_id]
+    extra, ep = _acc_clause(account_id)
+    sql += extra
+    params += ep
+    sql += " GROUP BY SUBSTRING(st.period_end, 1, 7)"
+    rows = conn.execute(sql, params).fetchall()
+    by_ym: dict[str, float] = {r["ym"]: float(r["total"] or 0) for r in rows}
+    months_list = [add_months(start_month, i) for i in range(months_back)]
+    return [(m.strftime("%b'%y"), by_ym.get(m.strftime("%Y-%m"), 0.0)) for m in months_list]
 
 
 # ----------------- Recurring / Fixed -----------------

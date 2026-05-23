@@ -1087,11 +1087,12 @@ def cuotas_page(request: Request, account: str | None = None):
         month_paid_ars, n_txs_ars = queries.cuotas_this_month(conn, user_id, anchor, "ARS", account_id)
         month_paid_usd, n_txs_usd = queries.cuotas_this_month(conn, user_id, anchor, "USD", account_id)
         forecast = queries.cuotas_forecast(conn, user_id, anchor, 6, "ARS", account_id)
+        history = queries.cuotas_history(conn, user_id, anchor, 6, "ARS", account_id)
         accounts = queries.all_accounts(conn, user_id)
         uncat_count = queries.uncategorized_count(conn, user_id)
         frequent_people = queries.frequent_participants(conn, user_id)
         tree = queries.category_tree(conn, user_id)
-        forecast_html = _plot_cuotas(forecast)
+        forecast_html = _plot_cuotas(forecast, history)
     return templates.TemplateResponse(
         request, "cuotas.html",
         {
@@ -1302,20 +1303,43 @@ def _plot_trend(trend: list[tuple[str, float]]) -> str:
     return fig.to_html(include_plotlyjs=False, full_html=False, config={"displayModeBar": False})
 
 
-def _plot_cuotas(cuotas: list[tuple[str, float]]) -> str:
-    if not cuotas or all(v == 0 for _, v in cuotas):
+def _plot_cuotas(cuotas: list[tuple[str, float]],
+                 history: list[tuple[str, float]] | None = None) -> str:
+    history = history or []
+    combined = history + cuotas
+    if not combined or all(v == 0 for _, v in combined):
         return "<p class='text-slate-400 text-sm'>No tenés cuotas pendientes 🎉</p>"
-    months = [m for m, _ in cuotas]
-    vals = [v for _, v in cuotas]
-    fig = go.Figure(go.Bar(
-        x=months, y=vals,
-        marker_color="#a855f7",
-        text=[f"${v:,.0f}" if v > 0 else "" for v in vals],
+
+    fig = go.Figure()
+    show_legend = len(history) > 0
+
+    if history:
+        hist_months = [m for m, _ in history]
+        hist_vals = [v for _, v in history]
+        fig.add_trace(go.Bar(
+            x=hist_months, y=hist_vals,
+            name="Pagado",
+            marker_color="#94a3b8",  # slate-400, gris para histórico
+            text=[f"${v:,.0f}" if v > 0 else "" for v in hist_vals],
+            textposition="outside",
+            cliponaxis=False,
+            hovertemplate="<b>%{x}</b> (pagado)<br>$%{y:,.0f}<extra></extra>",
+        ))
+
+    fc_months = [m for m, _ in cuotas]
+    fc_vals = [v for _, v in cuotas]
+    fig.add_trace(go.Bar(
+        x=fc_months, y=fc_vals,
+        name="Pendiente",
+        marker_color="#a855f7",  # purple-500 para forecast
+        text=[f"${v:,.0f}" if v > 0 else "" for v in fc_vals],
         textposition="outside",
         cliponaxis=False,
-        hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
+        hovertemplate="<b>%{x}</b> (pendiente)<br>$%{y:,.0f}<extra></extra>",
     ))
-    max_val = max(vals) if vals else 0
+
+    all_vals = [v for _, v in combined]
+    max_val = max(all_vals) if all_vals else 0
     fig.update_layout(
         margin=dict(l=40, r=20, t=40, b=40),
         height=260,
@@ -1325,7 +1349,9 @@ def _plot_cuotas(cuotas: list[tuple[str, float]]) -> str:
         xaxis=dict(showgrid=False),
         yaxis=dict(tickformat=",.0f", showgrid=True, gridcolor="rgba(148,163,184,0.2)",
                    range=[0, max_val * 1.2] if max_val > 0 else None),
-        showlegend=False,
+        showlegend=show_legend,
+        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="right", x=1),
         uniformtext=dict(minsize=10, mode="show"),
+        barmode="group",
     )
     return fig.to_html(include_plotlyjs=False, full_html=False, config={"displayModeBar": False})
