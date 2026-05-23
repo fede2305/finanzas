@@ -367,8 +367,9 @@ def cuotas_pending_detail(conn, user_id: str,
     # Robusto a statements duplicados (re-ingestiones, files distintos del
     # mismo período).
     sql = """SELECT * FROM (
-               SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
-                                   t.description_normalized, t.installment_total)
+               SELECT DISTINCT ON (t.account_id,
+                                   CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
+                                   t.installment_total)
                       t.id, t.posted_at, t.description_raw, t.amount, t.currency,
                       t.notes,
                       t.installment_current, t.installment_total,
@@ -385,8 +386,9 @@ def cuotas_pending_detail(conn, user_id: str,
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
-    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
-                        t.description_normalized, t.installment_total,
+    sql += """ ORDER BY t.account_id,
+                        CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
+                        t.installment_total,
                         t.installment_current DESC, t.posted_at DESC
              ) dedup
              WHERE installment_total > installment_current
@@ -424,8 +426,9 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
     sql = """SELECT COALESCE(SUM(amount * (installment_total - installment_current)), 0) AS total,
                     COUNT(*) AS n
              FROM (
-               SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
-                                   t.description_normalized, t.installment_total)
+               SELECT DISTINCT ON (t.account_id,
+                                   CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
+                                   t.installment_total)
                       t.amount, t.installment_current, t.installment_total
                FROM transactions t
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
@@ -435,8 +438,9 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
-    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
-                        t.description_normalized, t.installment_total,
+    sql += """ ORDER BY t.account_id,
+                        CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
+                        t.installment_total,
                         t.installment_current DESC, t.posted_at DESC
              ) dedup
              WHERE installment_total > installment_current"""
@@ -469,8 +473,9 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
     # Dedupe por compra: la cuota más reciente vista determina cuántas
     # quedan. Robusto a statements duplicados.
     sql = """SELECT amount, installment_current, installment_total FROM (
-               SELECT DISTINCT ON (t.account_id, COALESCE(t.comprobante,''),
-                                   t.description_normalized, t.installment_total)
+               SELECT DISTINCT ON (t.account_id,
+                                   CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
+                                   t.installment_total)
                       t.amount, t.installment_current, t.installment_total
                FROM transactions t
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
@@ -480,8 +485,9 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
-    sql += """ ORDER BY t.account_id, COALESCE(t.comprobante,''),
-                        t.description_normalized, t.installment_total,
+    sql += """ ORDER BY t.account_id,
+                        CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
+                        t.installment_total,
                         t.installment_current DESC, t.posted_at DESC
              ) dedup
              WHERE installment_total > installment_current"""
