@@ -170,7 +170,11 @@ _V2_SQL = """
     CREATE INDEX IF NOT EXISTS idx_upload_user_status ON upload_jobs(user_id, status);
 """
 
-MIGRATIONS: list[str] = [_V1_SQL, _V2_SQL]
+_V3_SQL = """
+    ALTER TABLE upload_jobs ADD COLUMN IF NOT EXISTS stage TEXT DEFAULT 'uploading';
+"""
+
+MIGRATIONS: list[str] = [_V1_SQL, _V2_SQL, _V3_SQL]
 
 
 class _PgConn:

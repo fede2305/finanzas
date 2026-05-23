@@ -14,23 +14,27 @@ def process_upload_job(conn, job_id: int) -> None:
     import shutil
     from finanzas import db
 
-    job = conn.execute(
-        "SELECT id, user_id, results FROM upload_jobs WHERE id = %s",
+    # Atomic claim: only one worker can transition pending -> processing
+    claim = conn.execute(
+        """UPDATE upload_jobs SET status = 'processing', stage = 'processing', started_at = NOW()
+           WHERE id = %s AND status = 'pending'
+           RETURNING user_id, results""",
         (job_id,),
     ).fetchone()
 
-    if not job:
-        print(f"[UPLOAD] Job {job_id} not found")
+    if not claim:
+        print(f"[UPLOAD] Job {job_id} not claimable (already processing or missing)")
         return
 
-    user_id = job["user_id"]
-    files_data = json.loads(job["results"] or "[]")
+    user_id = claim["user_id"]
+    files_data = json.loads(claim["results"] or "[]")
     upload_dir = Path(tempfile.gettempdir()) / "finanzas-uploads" / str(job_id)
 
     print(f"[UPLOAD] Starting job {job_id}, {len(files_data)} files")
+    # Reset progress_current since we may have used results to track upload progress
     conn.execute(
-        "UPDATE upload_jobs SET status = %s, stage = %s, started_at = NOW() WHERE id = %s",
-        ("processing", "processing", job_id),
+        "UPDATE upload_jobs SET progress_current = 0, progress_total = %s WHERE id = %s",
+        (len(files_data), job_id),
     )
 
     results = []

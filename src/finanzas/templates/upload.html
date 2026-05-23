@@ -112,8 +112,9 @@
   }
 
   function updateProcessingStage() {
-    const modal = document.getElementById('uploadModal');
+    const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
+    progressBar.style.width = '0%';
     progressText.textContent = 'Procesando archivos...';
   }
 

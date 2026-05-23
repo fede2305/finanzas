@@ -283,7 +283,12 @@ def upload_get(request: Request):
 
 
 @app.post("/api/upload")
-async def upload_api(request: Request, file: UploadFile = File(...), job_id: int | None = None, total_files: int | None = None):
+async def upload_api(
+    request: Request,
+    file: UploadFile = File(...),
+    job_id: int | None = Form(None),
+    total_files: int | None = Form(None),
+):
     from fastapi.responses import JSONResponse
     user = auth.require_user(request)
     if not user:
@@ -302,13 +307,13 @@ async def upload_api(request: Request, file: UploadFile = File(...), job_id: int
     if file.size and file.size > 50 * 1024 * 1024:
         raise HTTPException(400, "Archivo muy grande (máx 50MB)")
 
-    # First file: create new job
+    # First file: create new job with status='uploading' so background worker doesn't pick it up
     if not job_id:
         with db.connect() as conn:
             cur = conn.execute(
                 """INSERT INTO upload_jobs (user_id, status, stage, progress_total, results)
                    VALUES (%s, %s, %s, %s, %s) RETURNING id""",
-                (user_id, "pending", "uploading", total_files or 1, json.dumps([])),
+                (user_id, "uploading", "uploading", total_files or 1, json.dumps([])),
             )
             job_id = cur.lastrowid
 
@@ -328,27 +333,37 @@ async def upload_api(request: Request, file: UploadFile = File(...), job_id: int
         # Get current files list and add this one
         with db.connect() as conn:
             job = conn.execute(
-                "SELECT results FROM upload_jobs WHERE id = %s",
-                (job_id,),
+                "SELECT results FROM upload_jobs WHERE id = %s AND user_id = %s",
+                (job_id, user_id),
             ).fetchone()
+            if not job:
+                raise HTTPException(404, "Job not found")
             files_data = json.loads(job["results"] or "[]")
 
-            # Add new file
             files_data.append({"filename": file.filename, "tmp_path": str(tmp_path)})
 
-            # Update job
             conn.execute(
                 """UPDATE upload_jobs SET results = %s WHERE id = %s""",
                 (json.dumps(files_data), job_id),
             )
 
-        # If this is the last file, start processing
+        # If last file: atomically transition uploading -> pending and trigger processing
         if total_files and len(files_data) >= total_files:
-            import asyncio
-            asyncio.create_task(_process_upload_async(job_id))
+            with db.connect() as conn:
+                cur = conn.execute(
+                    """UPDATE upload_jobs SET status = 'pending'
+                       WHERE id = %s AND status = 'uploading' RETURNING id""",
+                    (job_id,),
+                )
+                got_lock = cur.fetchone() is not None
+            if got_lock:
+                import asyncio
+                asyncio.create_task(_process_upload_async(job_id))
 
         return JSONResponse({"job_id": job_id, "files_uploaded": len(files_data)})
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[UPLOAD] Error: {e}")
         raise
