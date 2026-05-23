@@ -376,9 +376,8 @@ def _is_likely_closed(it: dict, grace_days: int = 45) -> bool:
     except (TypeError, ValueError):
         return False
     remaining = (it.get("installment_total") or 0) - (it.get("installment_current") or 0)
-    if remaining <= 0:
-        return True
-    final = add_months(last, remaining)
+    # final = fecha esperada de la última cuota (= anchor si remaining=0).
+    final = add_months(last, max(remaining, 0))
     return date.today() > final + _td(days=grace_days)
 
 
@@ -456,8 +455,8 @@ def cuotas_pending_detail(conn, user_id: str,
                         t.installment_total,
                         t.installment_current DESC, st.period_end DESC, t.posted_at DESC
              ) dedup
-             WHERE installment_total > installment_current
-             ORDER BY (installment_total - installment_current) * amount DESC"""
+             ORDER BY (installment_total - installment_current) * amount DESC,
+                      installment_total - installment_current DESC"""
     rows = conn.execute(sql, params).fetchall()
     out = []
     for r in rows:
