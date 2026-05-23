@@ -540,6 +540,7 @@ def manual_get(request: Request):
     with db.connect() as conn:
         rows = conn.execute(
             """SELECT m.id, m.posted_at, m.description, m.amount, m.currency,
+                      m.category_id, m.subcategory_id,
                       c.name AS cat, s.name AS sub, m.is_fixed, m.recurrence_rule
                FROM manual_expenses m
                LEFT JOIN categories c ON c.id = m.category_id
@@ -595,6 +596,44 @@ def manual_delete(request: Request, mid: int):
     with db.connect() as conn:
         conn.execute("DELETE FROM manual_expenses WHERE id = %s AND user_id = %s", (mid, user_id))
     return RedirectResponse(url="/manual", status_code=303)
+
+
+@app.post("/api/manual/{mid}/update")
+async def manual_update(request: Request, mid: int):
+    from fastapi.responses import JSONResponse
+    user = auth.require_user(request)
+    if not user:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    user_id: str = user["sub"]
+
+    body = await request.json()
+    field = body.get("field")
+    value = body.get("value")
+
+    allowed = {"posted_at", "description", "amount", "currency", "category_id", "subcategory_id", "is_fixed", "recurrence_rule"}
+    if field not in allowed:
+        return JSONResponse({"error": f"Field not editable: {field}"}, status_code=400)
+
+    # Type coercion per field
+    if field == "amount":
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "Invalid amount"}, status_code=400)
+    elif field in {"category_id", "subcategory_id"}:
+        value = int(value) if value not in (None, "", "null") else None
+    elif field == "is_fixed":
+        value = 1 if value in (True, 1, "1", "true") else 0
+
+    with db.connect() as conn:
+        cur = conn.execute(
+            f"UPDATE manual_expenses SET {field} = %s WHERE id = %s AND user_id = %s RETURNING id",
+            (value, mid, user_id),
+        )
+        if not cur.fetchone():
+            return JSONResponse({"error": "Not found"}, status_code=404)
+
+    return JSONResponse({"ok": True})
 
 
 # --------------------- All transactions of month ---------------------

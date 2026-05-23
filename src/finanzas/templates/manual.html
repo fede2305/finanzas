@@ -87,20 +87,25 @@
       </thead>
       <tbody>
       {% for m in items %}
-        <tr class="border-b border-slate-100 dark:border-slate-700">
-          <td class="py-2 text-slate-500 text-xs whitespace-nowrap">{{ m.posted_at }}</td>
-          <td class="py-2">
+        <tr class="border-b border-slate-100 dark:border-slate-700" data-mid="{{ m.id }}">
+          <td class="py-2 text-slate-500 text-xs whitespace-nowrap edit-cell"
+              data-field="posted_at" data-type="date" data-value="{{ m.posted_at }}">{{ m.posted_at }}</td>
+          <td class="py-2 edit-cell" data-field="description" data-type="text" data-value="{{ m.description }}">
             <div class="break-words">{{ m.description }}</div>
             <div class="text-xs text-slate-400 dark:text-slate-500 md:hidden">{{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}{% if m.is_fixed %} · fijo{% endif %}</div>
           </td>
-          <td class="py-2 text-xs hidden md:table-cell">
+          <td class="py-2 text-xs hidden md:table-cell edit-cell"
+              data-field="category" data-type="category"
+              data-cat-id="{{ m.category_id or '' }}" data-sub-id="{{ m.subcategory_id or '' }}">
             {{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}
           </td>
-          <td class="py-2 text-right font-medium whitespace-nowrap">
+          <td class="py-2 text-right font-medium whitespace-nowrap edit-cell"
+              data-field="amount" data-type="number" data-value="{{ m.amount }}" data-currency="{{ m.currency }}">
             {% if m.currency == 'USD' %}{{ currency_usd(m.amount) }}{% else %}{{ currency_ars(m.amount) }}{% endif %}
           </td>
-          <td class="py-2 text-xs hidden md:table-cell">
-            {% if m.is_fixed %}<span class="chip bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">fijo</span>{% endif %}
+          <td class="py-2 text-xs hidden md:table-cell edit-cell"
+              data-field="is_fixed" data-type="bool" data-value="{{ '1' if m.is_fixed else '0' }}">
+            {% if m.is_fixed %}<span class="chip bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">fijo</span>{% else %}<span class="text-slate-400">—</span>{% endif %}
           </td>
           <td class="py-2 text-right">
             <form method="post" action="/manual/{{ m.id }}/delete" class="inline">
@@ -127,5 +132,186 @@ function updateManualSubs() {
   target.innerHTML = '<option value="">—</option>' +
     subs.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
 }
+
+// Category tree for inline editing
+const CATEGORY_TREE = [
+  {% for cat in tree %}
+    {% if cat.name != 'Sin categoría' %}
+      {id: {{ cat.id }}, name: {{ cat.name|tojson }}, subs: {{ cat.subcategories|tojson }}},
+    {% endif %}
+  {% endfor %}
+];
+
+function fmtAmount(amount, currency) {
+  const v = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  if (currency === 'USD') {
+    return `${sign}US$${v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  }
+  return `${sign}$${Math.round(v).toLocaleString('de-DE')}`;
+}
+
+async function saveField(mid, field, value) {
+  const resp = await fetch(`/api/manual/${mid}/update`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ field, value }),
+  });
+  if (!resp.ok) {
+    let msg = `HTTP ${resp.status}`;
+    try { const d = await resp.json(); msg = d.error || msg; } catch (_) {}
+    throw new Error(msg);
+  }
+}
+
+function startEdit(cell) {
+  if (cell.querySelector('input, select')) return;
+  const mid = cell.closest('tr').dataset.mid;
+  const field = cell.dataset.field;
+  const type = cell.dataset.type;
+
+  if (type === 'bool') {
+    const oldVal = cell.dataset.value === '1';
+    const newVal = !oldVal;
+    saveField(mid, 'is_fixed', newVal).then(() => {
+      cell.dataset.value = newVal ? '1' : '0';
+      cell.innerHTML = newVal
+        ? '<span class="chip bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">fijo</span>'
+        : '<span class="text-slate-400">—</span>';
+    }).catch(err => alert('Error: ' + err.message));
+    return;
+  }
+
+  if (type === 'category') {
+    startCategoryEdit(cell, mid);
+    return;
+  }
+
+  const oldValue = cell.dataset.value;
+  const oldHTML = cell.innerHTML;
+  const input = document.createElement('input');
+  input.type = type === 'number' ? 'number' : (type === 'date' ? 'date' : 'text');
+  if (type === 'number') input.step = '0.01';
+  input.value = oldValue;
+  input.className = 'w-full text-sm border border-blue-500 rounded px-1 py-0.5 bg-white dark:bg-slate-800';
+  cell.innerHTML = '';
+  cell.appendChild(input);
+  input.focus();
+  if (type === 'text') input.select();
+
+  let done = false;
+  const save = async () => {
+    if (done) return; done = true;
+    const newValue = input.value;
+    if (newValue === oldValue || newValue === '') {
+      cell.innerHTML = oldHTML;
+      return;
+    }
+    try {
+      const sendField = field;
+      await saveField(mid, sendField, newValue);
+      cell.dataset.value = newValue;
+      if (field === 'amount') {
+        const currency = cell.dataset.currency;
+        cell.innerHTML = fmtAmount(parseFloat(newValue), currency);
+      } else if (field === 'description') {
+        // preserve mobile subtitle
+        const subtitle = oldHTML.match(/<div class="text-xs[\s\S]*?<\/div>/);
+        cell.innerHTML = `<div class="break-words">${escapeHtml(newValue)}</div>` + (subtitle ? subtitle[0] : '');
+      } else {
+        cell.textContent = newValue;
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+      cell.innerHTML = oldHTML;
+    }
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { done = true; cell.innerHTML = oldHTML; }
+  });
+}
+
+function startCategoryEdit(cell, mid) {
+  const oldHTML = cell.innerHTML;
+  const oldCatId = cell.dataset.catId;
+  const oldSubId = cell.dataset.subId;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'flex gap-1';
+
+  const catSel = document.createElement('select');
+  catSel.className = 'text-xs border border-blue-500 rounded px-1 bg-white dark:bg-slate-800';
+  catSel.innerHTML = '<option value="">—</option>' +
+    CATEGORY_TREE.map(c => `<option value="${c.id}" ${c.id == oldCatId ? 'selected' : ''}>${c.name}</option>`).join('');
+
+  const subSel = document.createElement('select');
+  subSel.className = 'text-xs border border-blue-500 rounded px-1 bg-white dark:bg-slate-800';
+
+  function renderSubs() {
+    const cat = CATEGORY_TREE.find(c => c.id == catSel.value);
+    const subs = cat ? cat.subs : [];
+    subSel.innerHTML = '<option value="">—</option>' +
+      subs.map(s => `<option value="${s.id}" ${s.id == oldSubId ? 'selected' : ''}>${s.name}</option>`).join('');
+  }
+  renderSubs();
+  catSel.addEventListener('change', renderSubs);
+
+  wrap.appendChild(catSel);
+  wrap.appendChild(subSel);
+  cell.innerHTML = '';
+  cell.appendChild(wrap);
+  catSel.focus();
+
+  let done = false;
+  const save = async (e) => {
+    // Avoid saving twice if blur fires on both selects
+    if (done) return;
+    // If focus is still inside this cell, wait
+    setTimeout(async () => {
+      if (cell.contains(document.activeElement)) return;
+      if (done) return; done = true;
+
+      const newCatId = catSel.value || null;
+      const newSubId = subSel.value || null;
+      try {
+        if (newCatId != oldCatId) await saveField(mid, 'category_id', newCatId);
+        if (newSubId != oldSubId) await saveField(mid, 'subcategory_id', newSubId);
+        cell.dataset.catId = newCatId || '';
+        cell.dataset.subId = newSubId || '';
+        const catName = newCatId ? CATEGORY_TREE.find(c => c.id == newCatId)?.name : null;
+        const subName = newSubId && newCatId
+          ? CATEGORY_TREE.find(c => c.id == newCatId)?.subs.find(s => s.id == newSubId)?.name
+          : null;
+        cell.textContent = (catName || '—') + (subName ? ' / ' + subName : '');
+      } catch (err) {
+        alert('Error: ' + err.message);
+        cell.innerHTML = oldHTML;
+      }
+    }, 50);
+  };
+
+  catSel.addEventListener('blur', save);
+  subSel.addEventListener('blur', save);
+  catSel.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { done = true; cell.innerHTML = oldHTML; }
+  });
+  subSel.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { done = true; cell.innerHTML = oldHTML; }
+    if (e.key === 'Enter') { e.preventDefault(); subSel.blur(); }
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+document.querySelectorAll('.edit-cell').forEach(cell => {
+  cell.style.cursor = 'pointer';
+  cell.title = 'Click para editar';
+  cell.addEventListener('click', () => startEdit(cell));
+});
 </script>
 {% endblock %}
