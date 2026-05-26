@@ -77,6 +77,27 @@ def ingest_file(
     if not accounts_seen:
         raise ValueError("Statement no contiene cuentas válidas")
     titular_account_id = next(iter(accounts_seen.values()))
+
+    # Dedup por (user_id, account_id, period_end): atrapa re-uploads del mismo
+    # resumen con file_sha256 distinto (PDF re-generado, distinta compresión, etc).
+    # Solo aplicamos el chequeo si tenemos period_end del parser.
+    if parsed.period_end:
+        existing_period = conn.execute(
+            """SELECT id FROM statements
+               WHERE user_id = %s AND account_id = %s AND period_end = %s""",
+            (user_id, titular_account_id, parsed.period_end.isoformat()),
+        ).fetchone()
+        if existing_period:
+            return IngestResult(
+                statement_id=existing_period["id"],
+                file_already_imported=True,
+                new_transactions=0,
+                duplicate_transactions=0,
+                auto_categorized=0,
+                uncategorized=0,
+                recurring_groups_detected=0,
+            )
+
     cur = conn.execute(
         """INSERT INTO statements
            (user_id, account_id, period_start, period_end, due_date,
