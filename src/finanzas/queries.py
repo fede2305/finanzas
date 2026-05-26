@@ -422,10 +422,12 @@ def _is_fully_refunded(conn, user_id: str, it: dict, tolerance: float = 0.10) ->
 
 def cuotas_pending_detail(conn, user_id: str,
                           account_id: int | None = None) -> list[dict]:
-    # Solo mostramos cuotas que APARECEN en el último resumen cargado de cada
-    # cuenta. Si una compra dejó de aparecer (terminó o reembolsada), no la
-    # listamos — aunque el heurístico de "likely closed" la considerase abierta.
-    # Robusto a statements duplicados del mismo período (mismo period_end).
+    # Solo mostramos cuotas si:
+    #  (1) la tx pertenece al último resumen de su cuenta, y
+    #  (2) ese resumen está en el mismo mes-calendario que el resumen más
+    #      reciente del usuario (cualquier cuenta). Si subiste un resumen
+    #      nuevo de otro banco, las cuentas que aún no tienen resumen del
+    #      mes nuevo quedan "viejas" y se ocultan.
     sql = """SELECT * FROM (
                SELECT DISTINCT ON (t.account_id,
                                    CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
@@ -449,8 +451,11 @@ def cuotas_pending_detail(conn, user_id: str,
                  AND st.period_end = (
                    SELECT MAX(period_end) FROM statements
                    WHERE account_id = t.account_id AND user_id = %s
+                 )
+                 AND SUBSTRING(st.period_end, 1, 7) = (
+                   SELECT SUBSTRING(MAX(period_end), 1, 7) FROM statements WHERE user_id = %s
                  )"""
-    params: list = [user_id, user_id]
+    params: list = [user_id, user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
@@ -495,7 +500,9 @@ def cuotas_pending_detail(conn, user_id: str,
 
 def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                          account_id: int | None = None) -> tuple[float, int]:
-    # Solo compras presentes en el último resumen de cada cuenta.
+    # Solo compras del último resumen de cada cuenta, y solo si esa cuenta
+    # tiene resumen en el mismo mes-calendario que el resumen más reciente
+    # del usuario (cualquier cuenta).
     sql = """SELECT amount, installment_current, installment_total,
                     comprobante, description_normalized, currency, posted_at,
                     stmt_period_end
@@ -514,8 +521,11 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                  AND st.period_end = (
                    SELECT MAX(period_end) FROM statements
                    WHERE account_id = t.account_id AND user_id = %s
+                 )
+                 AND SUBSTRING(st.period_end, 1, 7) = (
+                   SELECT SUBSTRING(MAX(period_end), 1, 7) FROM statements WHERE user_id = %s
                  )"""
-    params: list = [currency, user_id, user_id]
+    params: list = [currency, user_id, user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
@@ -561,7 +571,9 @@ def cuotas_this_month(conn, user_id: str, day_of_month: date,
 def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
                     currency: str = "ARS",
                     account_id: int | None = None) -> list[tuple[str, float]]:
-    # Solo proyectamos compras presentes en el último resumen de cada cuenta.
+    # Solo proyectamos compras del último resumen de cada cuenta, y solo si
+    # esa cuenta tiene resumen en el mismo mes que el resumen más reciente
+    # del usuario (cualquier cuenta).
     sql = """SELECT amount, installment_current, installment_total,
                     comprobante, description_normalized, currency, posted_at,
                     stmt_period_end
@@ -580,8 +592,11 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
                  AND st.period_end = (
                    SELECT MAX(period_end) FROM statements
                    WHERE account_id = t.account_id AND user_id = %s
+                 )
+                 AND SUBSTRING(st.period_end, 1, 7) = (
+                   SELECT SUBSTRING(MAX(period_end), 1, 7) FROM statements WHERE user_id = %s
                  )"""
-    params: list = [currency, user_id, user_id]
+    params: list = [currency, user_id, user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
