@@ -422,11 +422,10 @@ def _is_fully_refunded(conn, user_id: str, it: dict, tolerance: float = 0.10) ->
 
 def cuotas_pending_detail(conn, user_id: str,
                           account_id: int | None = None) -> list[dict]:
-    # Dedupe por COMPRA: la misma compra aparece N veces a lo largo de N
-    # resúmenes (cuota 1/12, 2/12, ...). DISTINCT ON elige la fila con
-    # installment_current más alto = cuota más reciente vista.
-    # Robusto a statements duplicados (re-ingestiones, files distintos del
-    # mismo período).
+    # Solo mostramos cuotas que APARECEN en el último resumen cargado de cada
+    # cuenta. Si una compra dejó de aparecer (terminó o reembolsada), no la
+    # listamos — aunque el heurístico de "likely closed" la considerase abierta.
+    # Robusto a statements duplicados del mismo período (mismo period_end).
     sql = """SELECT * FROM (
                SELECT DISTINCT ON (t.account_id,
                                    CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
@@ -446,8 +445,12 @@ def cuotas_pending_detail(conn, user_id: str,
                LEFT JOIN categories s ON s.id = t.subcategory_id
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
                  AND t.amount > 0
-                 AND t.user_id = %s"""
-    params: list = [user_id]
+                 AND t.user_id = %s
+                 AND st.period_end = (
+                   SELECT MAX(period_end) FROM statements
+                   WHERE account_id = t.account_id AND user_id = %s
+                 )"""
+    params: list = [user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
@@ -492,7 +495,7 @@ def cuotas_pending_detail(conn, user_id: str,
 
 def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                          account_id: int | None = None) -> tuple[float, int]:
-    # Dedupe por compra + filtro de reembolsos totales.
+    # Solo compras presentes en el último resumen de cada cuenta.
     sql = """SELECT amount, installment_current, installment_total,
                     comprobante, description_normalized, currency, posted_at,
                     stmt_period_end
@@ -507,8 +510,12 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                JOIN statements st ON st.id = t.statement_id
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
                  AND t.amount > 0 AND t.currency = %s
-                 AND t.user_id = %s"""
-    params: list = [currency, user_id]
+                 AND t.user_id = %s
+                 AND st.period_end = (
+                   SELECT MAX(period_end) FROM statements
+                   WHERE account_id = t.account_id AND user_id = %s
+                 )"""
+    params: list = [currency, user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
@@ -554,8 +561,7 @@ def cuotas_this_month(conn, user_id: str, day_of_month: date,
 def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
                     currency: str = "ARS",
                     account_id: int | None = None) -> list[tuple[str, float]]:
-    # Dedupe por compra: la cuota más reciente vista determina cuántas
-    # quedan. Robusto a statements duplicados.
+    # Solo proyectamos compras presentes en el último resumen de cada cuenta.
     sql = """SELECT amount, installment_current, installment_total,
                     comprobante, description_normalized, currency, posted_at,
                     stmt_period_end
@@ -570,8 +576,12 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
                JOIN statements st ON st.id = t.statement_id
                WHERE t.installment_total IS NOT NULL AND t.installment_current IS NOT NULL
                  AND t.amount > 0 AND t.currency = %s
-                 AND t.user_id = %s"""
-    params: list = [currency, user_id]
+                 AND t.user_id = %s
+                 AND st.period_end = (
+                   SELECT MAX(period_end) FROM statements
+                   WHERE account_id = t.account_id AND user_id = %s
+                 )"""
+    params: list = [currency, user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
