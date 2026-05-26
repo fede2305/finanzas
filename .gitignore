@@ -19,7 +19,9 @@ statements/
 *.db-journal
 *.db-wal
 *.db-shm
-tests/fixtures/bbva_visa_2026-05.pdf
+# Fixtures de resúmenes reales — datos confidenciales (force-add con `git add -f` si son anonimizados)
+tests/fixtures/*.pdf
+tests/fixtures/*.xlsx
 fede-chorsa-game-qr.png
 
 # Editores
