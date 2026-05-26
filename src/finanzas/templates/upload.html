@@ -6,7 +6,7 @@
 
 <div class="card max-w-2xl">
   <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">
-    Aceptamos PDFs de <b>Santander Río</b> y <b>Galicia</b>, y xlsx de Santander.
+    Aceptamos PDFs de <b>Santander Río</b>, <b>Galicia</b> y <b>BBVA</b>, y xlsx de Santander.
     Si subís el mismo archivo dos veces, no se duplican datos.
   </p>
   <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
@@ -19,6 +19,54 @@
     <p class="text-xs text-slate-400 dark:text-slate-500">Podés seleccionar varios archivos a la vez (Ctrl+click o Shift+click).</p>
   </form>
 </div>
+
+<!-- Resúmenes cargados -->
+{% if months %}
+<div class="mt-8 max-w-3xl">
+  <h2 class="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Resúmenes cargados</h2>
+  <div class="space-y-4">
+    {% for g in months %}
+      <div class="card">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
+          {{ g.label }}
+          <span class="text-xs font-normal text-slate-400 ml-1">({{ g.statements|length }})</span>
+        </h3>
+        <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+          {% for s in g.statements %}
+            <li class="py-2 flex items-center justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="text-sm text-slate-900 dark:text-slate-100 truncate">
+                  <span class="font-medium">{{ s.bank }}</span>
+                  <span class="text-slate-400">···{{ s.card_last4 }}</span>
+                  {% if s.holder_name %}
+                    <span class="text-slate-400">· {{ s.holder_name }}</span>
+                  {% endif %}
+                </div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {{ s.period_start or '?' }} → {{ s.period_end or '?' }}
+                  · {{ s.tx_count }} tx
+                  {% if s.raw_total_ars %}· {{ currency_ars(s.raw_total_ars) }}{% endif %}
+                  {% if s.raw_total_usd %}· {{ currency_usd(s.raw_total_usd) }}{% endif %}
+                </div>
+                {% if s.source_filename %}
+                  <div class="text-[11px] text-slate-400 truncate">{{ s.source_filename }}</div>
+                {% endif %}
+              </div>
+              <form method="post" action="/statements/{{ s.id }}/delete"
+                    onsubmit="return confirm('Borrar este resumen y sus {{ s.tx_count }} transacciones? Esta acción no se puede deshacer.');">
+                <button type="submit"
+                        class="text-xs px-2 py-1 rounded border border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 dark:hover:bg-rose-950">
+                  Borrar
+                </button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <!-- Modal flotante de progreso -->
 <div id="uploadModal" class="hidden fixed inset-0 bg-black/30 flex items-end p-4 z-50">

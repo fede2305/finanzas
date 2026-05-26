@@ -277,9 +277,22 @@ def upload_get(request: Request):
     user = auth.require_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
+    with db.connect() as conn:
+        months = queries.list_statements_by_month(conn, user["sub"])
     return templates.TemplateResponse(
-        request, "upload.html", {"result": None, "user": user},
+        request, "upload.html",
+        {"result": None, "user": user, "months": months},
     )
+
+
+@app.post("/statements/{statement_id}/delete")
+def delete_statement(request: Request, statement_id: int):
+    user = auth.require_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    with db.connect() as conn:
+        queries.delete_statement(conn, user["sub"], statement_id)
+    return RedirectResponse("/upload", status_code=303)
 
 
 @app.post("/api/upload")

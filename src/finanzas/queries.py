@@ -885,6 +885,60 @@ def search_transactions(
     return items
 
 
+def list_statements_by_month(conn, user_id: str) -> list[dict]:
+    """Resúmenes del usuario agrupados por mes (basado en period_end).
+
+    Devuelve una lista de meses, cada uno con sus statements. Cada statement trae
+    bank/card del account asociado y un tx_count (cuántas transacciones quedan).
+    """
+    rows = conn.execute(
+        """SELECT st.id, st.period_start, st.period_end, st.due_date,
+                  st.source_filename, st.raw_total_ars, st.raw_total_usd,
+                  st.parsed_at,
+                  a.bank, a.card_last4, a.holder_name,
+                  COUNT(t.id) AS tx_count
+           FROM statements st
+           JOIN accounts a ON a.id = st.account_id
+           LEFT JOIN transactions t ON t.statement_id = st.id
+           WHERE st.user_id = %s
+           GROUP BY st.id, a.bank, a.card_last4, a.holder_name
+           ORDER BY st.period_end DESC NULLS LAST, st.parsed_at DESC""",
+        (user_id,),
+    ).fetchall()
+
+    meses_es = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    groups: dict[str, list[dict]] = {}
+    order: list[str] = []
+    for r in rows:
+        s = dict(r)
+        pe = s.get("period_end")
+        key = pe[:7] if pe else "sin-fecha"
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(s)
+
+    out: list[dict] = []
+    for k in order:
+        if k == "sin-fecha":
+            label = "Sin fecha"
+        else:
+            y, m = k.split("-")
+            label = f"{meses_es[int(m)]} {y}"
+        out.append({"month": k, "label": label, "statements": groups[k]})
+    return out
+
+
+def delete_statement(conn, user_id: str, statement_id: int) -> bool:
+    """Borra un resumen (y sus transactions via cascade). Filtra por user_id."""
+    cur = conn.execute(
+        "DELETE FROM statements WHERE id = %s AND user_id = %s RETURNING id",
+        (statement_id, user_id),
+    )
+    return cur.fetchone() is not None
+
+
 def latest_data_anchor(conn, user_id: str) -> date:
     row = conn.execute(
         "SELECT MAX(posted_at) AS m FROM transactions WHERE amount > 0 AND user_id = %s",
