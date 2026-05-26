@@ -19,6 +19,8 @@ statements/
 *.db-journal
 *.db-wal
 *.db-shm
+tests/fixtures/bbva_visa_2026-05.pdf
+fede-chorsa-game-qr.png
 
 # Editores
 .vscode/

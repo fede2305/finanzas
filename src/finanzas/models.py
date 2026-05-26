@@ -27,7 +27,7 @@ class ParsedTransaction:
 class ParsedStatement:
     """Resultado del parser para un archivo de resumen."""
 
-    bank: Literal["santander_rio", "galicia"]
+    bank: Literal["santander_rio", "galicia", "bbva"]
     period_start: date
     period_end: date
     due_date: date | None

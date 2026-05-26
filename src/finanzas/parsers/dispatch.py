@@ -28,22 +28,27 @@ def parse_file(path: str | Path) -> ParsedStatement:
         if bank == "galicia":
             from finanzas.parsers.galicia_pdf import parse as parse_galicia
             return parse_galicia(p)
+        if bank == "bbva":
+            from finanzas.parsers.bbva_pdf import parse as parse_bbva
+            return parse_bbva(p)
         raise ValueError(f"No pude detectar el banco del PDF: {p.name}")
 
     raise ValueError(f"Formato no soportado: {p.suffix}")
 
 
 def _detect_pdf_bank(path: Path) -> str:
-    """Inspecciona el texto del PDF buscando marcas del banco.
+    """Inspecciona el texto del PDF buscando el nombre del banco.
 
-    El logo de Galicia es imagen — el texto recién aparece en página 2 o por CUIT.
-    CUITs distintivos: Santander Río = 30-50000845, Galicia = 30-50000173.
+    El logo de Galicia/BBVA es imagen — el nombre suele aparecer en texto recién
+    en página 2 o 3, por eso escaneamos las primeras 3 páginas.
     """
     with pdfplumber.open(path) as pdf:
         for page in pdf.pages[:3]:
             text = (page.extract_text() or "").lower()
-            if "santander" in text or "30-50000845" in text:
+            if "santander" in text:
                 return "santander_rio"
-            if "galicia" in text or "30-50000173" in text:
+            if "galicia" in text:
                 return "galicia"
+            if "bbva" in text:
+                return "bbva"
     return "unknown"

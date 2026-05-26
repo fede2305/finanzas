@@ -24,6 +24,11 @@ def galicia_pdf():
     return parse_file(FIXTURES / "galicia_visa_2026-05.pdf")
 
 
+@pytest.fixture
+def bbva_pdf():
+    return parse_file(FIXTURES / "bbva_visa_2026-05.pdf")
+
+
 # ---------- Santander PDF ----------
 
 
@@ -130,6 +135,60 @@ def test_galicia_pdf_comprobante_six_digits(galicia_pdf):
         assert len(t.comprobante) == 6
 
 
+# ---------- BBVA PDF ----------
+
+
+def test_bbva_pdf_bank(bbva_pdf):
+    assert bbva_pdf.bank == "bbva"
+
+
+def test_bbva_pdf_dates(bbva_pdf):
+    assert bbva_pdf.period_start.isoformat() == "2026-03-26"
+    assert bbva_pdf.period_end.isoformat() == "2026-04-30"
+    assert bbva_pdf.due_date.isoformat() == "2026-05-08"
+
+
+def test_bbva_pdf_one_card(bbva_pdf):
+    cards = sorted({t.card_last4 for t in bbva_pdf.transactions})
+    assert cards == ["1223"]
+
+
+def test_bbva_pdf_tx_count(bbva_pdf):
+    # 65 consumos (con cupón) + 4 pagos/ajustes + 7 impuestos = 76
+    assert len(bbva_pdf.transactions) == 76
+
+
+def test_bbva_pdf_total(bbva_pdf):
+    assert bbva_pdf.raw_total_ars == pytest.approx(2361054.92, abs=1.0)
+    assert bbva_pdf.raw_total_usd == pytest.approx(32.03, abs=0.1)
+
+
+def test_bbva_pdf_finds_usd_txs(bbva_pdf):
+    # CURSOR, PLAYSTATION, Spotify (consumos USD) + SU PAGO EN USD = 4
+    usd = [t for t in bbva_pdf.transactions if t.currency == "USD"]
+    assert len(usd) == 4
+
+
+def test_bbva_pdf_finds_installments(bbva_pdf):
+    # 6 consumos en cuotas: BOXESPREMIUM 11/12, MERCADOLIBRE 4/6, PAMPASDEARECO 4/6,
+    # NARROW 3/3, PRUNE 2/3, PENGUIN DOT BAIRES 2/6
+    ins = [t for t in bbva_pdf.transactions if t.installment_total]
+    assert len(ins) == 6
+
+
+def test_bbva_pdf_finds_negative_amounts(bbva_pdf):
+    # SU PAGO PESOS, SU PAGO USD, CR.RG, CR IVA, DEV COMISION = 5
+    neg = [t for t in bbva_pdf.transactions if t.amount < 0]
+    assert len(neg) == 5
+
+
+def test_bbva_pdf_consumo_cupon_six_digits(bbva_pdf):
+    consumos = [t for t in bbva_pdf.transactions if t.comprobante]
+    assert len(consumos) == 65
+    for t in consumos:
+        assert len(t.comprobante) == 6
+
+
 # ---------- Dispatcher ----------
 
 
@@ -139,3 +198,7 @@ def test_dispatcher_detects_santander(santander_pdf):
 
 def test_dispatcher_detects_galicia(galicia_pdf):
     assert galicia_pdf.bank == "galicia"
+
+
+def test_dispatcher_detects_bbva(bbva_pdf):
+    assert bbva_pdf.bank == "bbva"
