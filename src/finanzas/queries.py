@@ -382,6 +382,27 @@ def _is_likely_closed(it: dict, grace_days: int = 45) -> bool:
     return date.today() > final + _td(days=grace_days)
 
 
+def _months_diff(a: str | None, b: str | None) -> int:
+    """b - a en meses. Inputs 'YYYY-MM' o 'YYYY-MM-DD'. 0 si inválido."""
+    try:
+        ya, ma = int(a[:4]), int(a[5:7])
+        yb, mb = int(b[:4]), int(b[5:7])
+        return (yb - ya) * 12 + (mb - ma)
+    except (TypeError, ValueError, IndexError):
+        return 0
+
+
+def _global_max_period_month(conn, user_id: str) -> str | None:
+    """'YYYY-MM' del período más reciente de cualquier resumen del usuario."""
+    row = conn.execute(
+        "SELECT SUBSTRING(MAX(period_end), 1, 7) AS m FROM statements WHERE user_id = %s",
+        (user_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return row["m"] if hasattr(row, "keys") else row[0]
+
+
 def _is_fully_refunded(conn, user_id: str, it: dict, tolerance: float = 0.10) -> bool:
     """¿Existe una tx negativa cuyo monto ≈ total de la compra Y matchea el
     mismo merchant (por comprobante o por todos los tokens del description)?
@@ -422,12 +443,10 @@ def _is_fully_refunded(conn, user_id: str, it: dict, tolerance: float = 0.10) ->
 
 def cuotas_pending_detail(conn, user_id: str,
                           account_id: int | None = None) -> list[dict]:
-    # Solo mostramos cuotas si:
-    #  (1) la tx pertenece al último resumen de su cuenta, y
-    #  (2) ese resumen está en el mismo mes-calendario que el resumen más
-    #      reciente del usuario (cualquier cuenta). Si subiste un resumen
-    #      nuevo de otro banco, las cuentas que aún no tienen resumen del
-    #      mes nuevo quedan "viejas" y se ocultan.
+    # Compras del último resumen de cada cuenta. Si la cuenta no tiene
+    # resumen en el mes-calendario más reciente del usuario, marcamos
+    # `is_predicted=True` y avanzamos installment_current la diferencia
+    # de meses. Las compras cuya cuota final ya pasó se excluyen.
     sql = """SELECT * FROM (
                SELECT DISTINCT ON (t.account_id,
                                    CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
@@ -451,11 +470,8 @@ def cuotas_pending_detail(conn, user_id: str,
                  AND st.period_end = (
                    SELECT MAX(period_end) FROM statements
                    WHERE account_id = t.account_id AND user_id = %s
-                 )
-                 AND SUBSTRING(st.period_end, 1, 7) = (
-                   SELECT SUBSTRING(MAX(period_end), 1, 7) FROM statements WHERE user_id = %s
                  )"""
-    params: list = [user_id, user_id, user_id]
+    params: list = [user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
@@ -467,19 +483,26 @@ def cuotas_pending_detail(conn, user_id: str,
              ORDER BY (installment_total - installment_current) * amount DESC,
                       installment_total - installment_current DESC"""
     rows = conn.execute(sql, params).fetchall()
+    global_month = _global_max_period_month(conn, user_id)
     out = []
     for r in rows:
         d = dict(r)
-        if _is_likely_closed(d):
-            continue  # cuotas finales estimadas ya pasaron — compra cerrada
+        row_month = (d.get("stmt_period_end") or "")[:7]
+        months_ahead = max(0, _months_diff(row_month, global_month)) if (global_month and row_month) else 0
+        predicted_current = (d["installment_current"] or 0) + months_ahead
+        if predicted_current > d["installment_total"]:
+            continue  # cuota final ya pasó — compra cerrada
         if _is_fully_refunded(conn, user_id, d):
             continue  # compra anulada / reembolsada
-        remaining = r["installment_total"] - r["installment_current"]
+        is_predicted = months_ahead > 0
+        d["is_predicted"] = is_predicted
+        d["installment_current"] = predicted_current  # override para display
+        remaining = d["installment_total"] - predicted_current
         out.append({
             **d,
             "remaining_count": remaining,
-            "remaining_amount": remaining * r["amount"],
-            "total_purchase": r["installment_total"] * r["amount"],
+            "remaining_amount": remaining * d["amount"],
+            "total_purchase": d["installment_total"] * d["amount"],
         })
     if out:
         ids = [it["id"] for it in out]
@@ -500,9 +523,9 @@ def cuotas_pending_detail(conn, user_id: str,
 
 def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                          account_id: int | None = None) -> tuple[float, int]:
-    # Solo compras del último resumen de cada cuenta, y solo si esa cuenta
-    # tiene resumen en el mismo mes-calendario que el resumen más reciente
-    # del usuario (cualquier cuenta).
+    # Compras del último resumen de cada cuenta. Avanza predicted_current
+    # según meses-de-atraso vs el resumen más reciente del usuario. Suma
+    # como pendiente todo lo que aún no pasó.
     sql = """SELECT amount, installment_current, installment_total,
                     comprobante, description_normalized, currency, posted_at,
                     stmt_period_end
@@ -521,11 +544,8 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                  AND st.period_end = (
                    SELECT MAX(period_end) FROM statements
                    WHERE account_id = t.account_id AND user_id = %s
-                 )
-                 AND SUBSTRING(st.period_end, 1, 7) = (
-                   SELECT SUBSTRING(MAX(period_end), 1, 7) FROM statements WHERE user_id = %s
                  )"""
-    params: list = [currency, user_id, user_id, user_id]
+    params: list = [currency, user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
@@ -533,18 +553,21 @@ def cuotas_pending_total(conn, user_id: str, currency: str = "ARS",
                         CASE WHEN COALESCE(t.comprobante,'')='' THEN t.description_normalized ELSE t.comprobante END,
                         t.installment_total,
                         t.installment_current DESC, st.period_end DESC, t.posted_at DESC
-             ) dedup
-             WHERE installment_total > installment_current"""
+             ) dedup"""
     rows = conn.execute(sql, params).fetchall()
+    global_month = _global_max_period_month(conn, user_id)
     total = 0.0
     n = 0
     for r in rows:
         d = dict(r)
-        if _is_likely_closed(d):
+        row_month = (d.get("stmt_period_end") or "")[:7]
+        months_ahead = max(0, _months_diff(row_month, global_month)) if (global_month and row_month) else 0
+        predicted_current = (d["installment_current"] or 0) + months_ahead
+        if predicted_current > d["installment_total"]:
             continue
         if _is_fully_refunded(conn, user_id, d):
             continue
-        total += float(r["amount"]) * (r["installment_total"] - r["installment_current"])
+        total += float(d["amount"]) * (d["installment_total"] - predicted_current)
         n += 1
     return total, n
 
@@ -571,9 +594,9 @@ def cuotas_this_month(conn, user_id: str, day_of_month: date,
 def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
                     currency: str = "ARS",
                     account_id: int | None = None) -> list[tuple[str, float]]:
-    # Solo proyectamos compras del último resumen de cada cuenta, y solo si
-    # esa cuenta tiene resumen en el mismo mes que el resumen más reciente
-    # del usuario (cualquier cuenta).
+    # Proyecta cuotas restantes desde el último resumen de cada cuenta.
+    # Avanza predicted_current según meses-de-atraso vs el resumen más
+    # reciente del usuario (cualquier cuenta) y proyecta desde ese punto.
     sql = """SELECT amount, installment_current, installment_total,
                     comprobante, description_normalized, currency, posted_at,
                     stmt_period_end
@@ -592,11 +615,8 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
                  AND st.period_end = (
                    SELECT MAX(period_end) FROM statements
                    WHERE account_id = t.account_id AND user_id = %s
-                 )
-                 AND SUBSTRING(st.period_end, 1, 7) = (
-                   SELECT SUBSTRING(MAX(period_end), 1, 7) FROM statements WHERE user_id = %s
                  )"""
-    params: list = [currency, user_id, user_id, user_id]
+    params: list = [currency, user_id, user_id]
     extra, ep = _acc_clause(account_id)
     sql += extra
     params += ep
@@ -607,29 +627,34 @@ def cuotas_forecast(conn, user_id: str, anchor: date, months: int = 6,
              ) dedup
              WHERE installment_total > installment_current"""
     rows = conn.execute(sql, params).fetchall()
+    global_month = _global_max_period_month(conn, user_id)
     buckets: dict[str, float] = defaultdict(float)
     start_month = add_months(anchor.replace(day=1), 1)
     months_list = [add_months(start_month, i) for i in range(months)]
     month_labels = {m.strftime("%b'%y") for m in months_list}
     for r in rows:
         d = dict(r)
-        if _is_likely_closed(d):
-            continue
         if _is_fully_refunded(conn, user_id, d):
             continue
-        # Anchor del forecast = period_end del statement de la última cuota
-        # vista (no posted_at — que es la fecha de compra original).
-        anchor_str = r["stmt_period_end"] or r["posted_at"]
-        try:
-            last_seen = datetime.fromisoformat(anchor_str).date().replace(day=1)
-        except (TypeError, ValueError):
-            continue
-        remaining = (r["installment_total"] or 0) - (r["installment_current"] or 0)
+        row_month = (d.get("stmt_period_end") or "")[:7]
+        months_ahead = max(0, _months_diff(row_month, global_month)) if (global_month and row_month) else 0
+        predicted_current = (d["installment_current"] or 0) + months_ahead
+        if predicted_current >= d["installment_total"]:
+            continue  # ya en la última cuota o más allá
+        # Anchor del forecast = global_month (o stmt_period_end como fallback).
+        if global_month:
+            last_seen = date(int(global_month[:4]), int(global_month[5:7]), 1)
+        else:
+            try:
+                last_seen = datetime.fromisoformat(d["stmt_period_end"]).date().replace(day=1)
+            except (TypeError, ValueError):
+                continue
+        remaining = d["installment_total"] - predicted_current
         for i in range(1, remaining + 1):
             cuota_month = add_months(last_seen, i)
             label = cuota_month.strftime("%b'%y")
             if label in month_labels:
-                buckets[label] += r["amount"]
+                buckets[label] += d["amount"]
     return [(m.strftime("%b'%y"), buckets.get(m.strftime("%b'%y"), 0.0)) for m in months_list]
 
 
