@@ -121,7 +121,7 @@ def ingest_file(
     for tx in parsed.transactions:
         acc_id = accounts_seen[tx.card_last4]
         desc_norm = normalize_description(tx.description_raw)
-        h = tx_hash(acc_id, tx.comprobante, tx.amount, tx.posted_at)
+        h = tx_hash(acc_id, tx.comprobante, tx.amount, tx.posted_at, tx.installment_current)
         conn.savepoint("sp_tx")
         try:
             conn.execute(

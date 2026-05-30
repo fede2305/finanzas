@@ -68,12 +68,25 @@ def file_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def tx_hash(account_id: int | str, comprobante: str | None, amount: float, posted_at: date) -> str:
+def tx_hash(
+    account_id: int | str,
+    comprobante: str | None,
+    amount: float,
+    posted_at: date,
+    installment_current: int | None = None,
+) -> str:
     """Hash determinístico para dedup de transacciones entre parsers (PDF vs xlsx).
 
     Normaliza el comprobante a solo dígitos para que '276079', '276079*' y '276079K'
     coincidan — distintos parsers extraen el comprobante con/sin el código de tipo.
+
+    Incluye `installment_current` porque en una compra en cuotas los demás campos
+    (account, comprobante, amount, posted_at=fecha de compra original) se repiten
+    idénticos cada mes: sin el número de cuota, C.02/06 chocaría con C.01/06 del
+    resumen anterior y se descartaría como duplicado. Solo se agrega al key cuando
+    hay cuota, para no alterar el hash de las transacciones de un pago.
     """
     comp_digits = re.sub(r"\D", "", comprobante or "")
-    key = f"{account_id}|{comp_digits}|{amount:.2f}|{posted_at.isoformat()}"
+    inst = f"|{installment_current}" if installment_current is not None else ""
+    key = f"{account_id}|{comp_digits}|{amount:.2f}|{posted_at.isoformat()}{inst}"
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
