@@ -2,52 +2,46 @@
 {% block title %}Buscar · finanzas{% endblock %}
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-6 text-slate-900 dark:text-white">Buscar gastos</h1>
+<h1 class="text-2xl font-bold mb-6 text-ink">Buscar gastos</h1>
 
 <div class="card mb-6">
   <form method="get" action="/buscar" class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
     <div class="md:col-span-2">
-      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Descripción contiene</label>
-      <input type="text" name="q" value="{{ q }}"
-             placeholder="netflix, carrefour, vivi..."
-             class="w-full text-sm rounded-md border border-slate-300 px-3 py-2">
+      <label class="block text-xs font-medium text-ink-2 mb-1">Descripción contiene</label>
+      <input type="text" name="q" value="{{ q }}" placeholder="netflix, carrefour, vivi..." class="field">
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Monto aprox.</label>
-      <input type="text" name="amount" value="{{ amount }}"
-             placeholder="1000 o 18.000"
-             class="w-full text-sm rounded-md border border-slate-300 px-3 py-2">
+      <label class="block text-xs font-medium text-ink-2 mb-1">Monto aprox.</label>
+      <input type="text" name="amount" value="{{ amount }}" placeholder="1000 o 18.000" class="field tnum">
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tolerancia</label>
-      <select name="tolerance" class="w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 bg-white dark:bg-slate-800 dark:text-slate-100">
+      <label class="block text-xs font-medium text-ink-2 mb-1">Tolerancia</label>
+      <select name="tolerance" class="field">
         {% for t in [5, 10, 20, 50] %}
           <option value="{{ t }}" {% if tolerance == t %}selected{% endif %}>±{{ t }}%</option>
         {% endfor %}
       </select>
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Moneda</label>
-      <select name="currency" class="w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 bg-white dark:bg-slate-800 dark:text-slate-100">
+      <label class="block text-xs font-medium text-ink-2 mb-1">Moneda</label>
+      <select name="currency" class="field">
         <option value="" {% if not currency %}selected{% endif %}>Ambas</option>
         <option value="ARS" {% if currency == 'ARS' %}selected{% endif %}>ARS</option>
         <option value="USD" {% if currency == 'USD' %}selected{% endif %}>USD</option>
       </select>
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tarjeta</label>
-      <select name="account" class="w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 bg-white dark:bg-slate-800 dark:text-slate-100">
+      <label class="block text-xs font-medium text-ink-2 mb-1">Tarjeta</label>
+      <select name="account" class="field">
         <option value="all" {% if account_param == 'all' %}selected{% endif %}>Todas</option>
         {% for a in accounts %}
-          <option value="{{ a.id }}" {% if account_param == a.id|string %}selected{% endif %}>
-            {{ a.bank }} ···{{ a.card_last4 }}
-          </option>
+          <option value="{{ a.id }}" {% if account_param == a.id|string %}selected{% endif %}>{{ a.bank }} ···{{ a.card_last4 }}</option>
         {% endfor %}
       </select>
     </div>
     <div class="md:col-span-6 flex items-center justify-between flex-wrap gap-2">
-      <p class="text-xs text-slate-500">Buscá por uno o ambos campos. Busca en <b>todos los meses</b>.</p>
-      <button type="submit" class="btn btn-primary text-sm">Buscar</button>
+      <p class="text-xs text-ink-3">Buscá por uno o ambos campos. Busca en <b class="text-ink-2">todos los meses</b>.</p>
+      <button type="submit" class="btn btn-primary text-sm"><i class="ph ph-magnifying-glass"></i>Buscar</button>
     </div>
   </form>
 </div>
@@ -56,25 +50,21 @@
   {% if results %}
     <div class="card mb-3">
       <div class="flex items-baseline gap-4 flex-wrap">
-        <div class="text-lg font-semibold">{{ results|length }} resultado{{ 's' if results|length != 1 else '' }}</div>
-        {% if total_ars > 0 %}
-          <div class="text-sm text-slate-600 dark:text-slate-300">total: <b>{{ currency_ars(total_ars) }}</b></div>
-        {% endif %}
-        {% if total_usd > 0 %}
-          <div class="text-sm text-slate-600 dark:text-slate-300">también <b>{{ currency_usd(total_usd) }}</b></div>
-        {% endif %}
+        <div class="text-lg font-semibold text-ink tnum">{{ results|length }} resultado{{ 's' if results|length != 1 else '' }}</div>
+        {% if total_ars > 0 %}<div class="text-sm text-ink-2">total <b class="text-ink tnum">{{ currency_ars(total_ars) }}</b></div>{% endif %}
+        {% if total_usd > 0 %}<div class="text-sm text-ink-2">también <b class="text-ink tnum">{{ currency_usd(total_usd) }}</b></div>{% endif %}
       </div>
     </div>
 
     <div class="card">
-      <table class="w-full text-sm">
-        <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
+      <table class="table">
+        <thead>
           <tr>
-            <th class="text-left py-2 font-medium hidden md:table-cell">Fecha</th>
-            <th class="text-left py-2 font-medium">Descripción</th>
-            <th class="text-left py-2 font-medium hidden md:table-cell">Categoría</th>
-            <th class="text-left py-2 font-medium hidden md:table-cell">Cuenta</th>
-            <th class="text-right py-2 font-medium">Monto</th>
+            <th class="hidden md:table-cell">Fecha</th>
+            <th>Descripción</th>
+            <th class="hidden md:table-cell">Categoría</th>
+            <th class="hidden md:table-cell">Cuenta</th>
+            <th class="text-right">Monto</th>
             <th></th>
           </tr>
         </thead>
@@ -87,53 +77,45 @@
           {% set total_owed = participants|sum(attribute='amount_owed') %}
           {% set my_amount = it.amount - total_owed %}
           {% set has_note = it.notes and it.notes.strip() %}
-          <tr id="tx-row-{{ it.id }}" class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 align-top">
-            <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">{{ it.posted_at[:10] }}</td>
-            <td class="py-2">
-              <div class="text-xs text-slate-400 md:hidden">{{ it.posted_at[:10] }} · {{ it.category or '—' }} · {{ it.bank }} ···{{ it.card_last4 }}</div>
-              <div class="break-words font-medium" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
+          <tr id="tx-row-{{ it.id }}" class="row-hover">
+            <td class="text-ink-2 text-xs whitespace-nowrap hidden md:table-cell tnum">{{ it.posted_at[:10] }}</td>
+            <td>
+              <div class="text-xs text-ink-3 md:hidden">{{ it.posted_at[:10] }} · {{ it.category or 'sin cat.' }} · {{ it.bank }} ···{{ it.card_last4 }}</div>
+              <div class="break-words font-medium text-ink" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
               {% if is_cuotas %}
-                <div class="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                  📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
-                  · total: {% if it.currency == 'USD' %}{{ currency_usd(total_purchase) }}{% else %}{{ currency_ars(total_purchase) }}{% endif %}
+                <div class="inline-flex items-center gap-1 text-xs text-warn-ink mt-0.5 tnum">
+                  <i class="ph ph-calendar-dots"></i>cuota {{ it.installment_current }}/{{ it.installment_total }}
+                  · total {% if it.currency == 'USD' %}{{ currency_usd(total_purchase) }}{% else %}{{ currency_ars(total_purchase) }}{% endif %}
                 </div>
               {% endif %}
               {% if has_note %}
-                <div class="text-xs text-slate-600 dark:text-slate-300 italic mt-0.5 break-words">📝 {{ it.notes }}</div>
+                <div class="text-xs text-ink-2 italic mt-0.5 break-words flex items-start gap-1"><i class="ph ph-note text-ink-3 mt-0.5"></i>{{ it.notes }}</div>
               {% endif %}
               {% if has_participants %}
                 <div class="mt-1.5 flex flex-wrap gap-1">
                   {% for p in participants %}
                     <form method="post" action="/participant/{{ p.id }}/toggle-paid"
-                          hx-post="/participant/{{ p.id }}/toggle-paid"
-                          hx-target="#tx-row-{{ it.id }}"
-                          hx-swap="outerHTML"
-                          class="inline">
-                      <button type="submit"
-                              class="text-xs px-2 py-0.5 rounded-full border transition
-                                     {% if p.paid_back %}bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300{% else %}bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300{% endif %}">
-                        {% if p.paid_back %}✓{% else %}⏳{% endif %}
-                        {{ p.person_name }}
-                        <span class="text-[10px] opacity-70">{% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}</span>
+                          hx-post="/participant/{{ p.id }}/toggle-paid" hx-target="#tx-row-{{ it.id }}" hx-swap="outerHTML" class="inline">
+                      <button type="submit" class="toggle" data-on="{{ 'pos' if p.paid_back else 'warn' }}">
+                        <i class="ph {{ 'ph-check' if p.paid_back else 'ph-clock' }}"></i>{{ p.person_name }}
+                        <span class="opacity-70 tnum">{% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}</span>
                       </button>
                     </form>
                   {% endfor %}
                 </div>
               {% endif %}
             </td>
-            <td class="py-2 text-xs text-slate-500 hidden md:table-cell">
-              {{ it.category or '—' }}{% if it.subcategory %} / {{ it.subcategory }}{% endif %}
+            <td class="text-xs text-ink-2 hidden md:table-cell">
+              {{ it.category or 'sin categoría' }}{% if it.subcategory %} / {{ it.subcategory }}{% endif %}
             </td>
-            <td class="py-2 text-xs text-slate-500 whitespace-nowrap hidden md:table-cell">{{ it.bank }} ···{{ it.card_last4 }}</td>
-            <td class="py-2 text-right font-medium whitespace-nowrap">
+            <td class="text-xs text-ink-2 whitespace-nowrap hidden md:table-cell">{{ it.bank }} ···{{ it.card_last4 }}</td>
+            <td class="text-right font-medium whitespace-nowrap tnum text-ink">
               {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}
               {% if has_participants %}
-                <div class="text-xs text-purple-600 font-normal">
-                  tu: {% if it.currency == 'USD' %}{{ currency_usd(my_amount) }}{% else %}{{ currency_ars(my_amount) }}{% endif %}
-                </div>
+                <div class="text-xs text-accent-soft-ink font-normal">tu: {% if it.currency == 'USD' %}{{ currency_usd(my_amount) }}{% else %}{{ currency_ars(my_amount) }}{% endif %}</div>
               {% endif %}
             </td>
-            <td class="py-2 text-right whitespace-nowrap">
+            <td class="text-right whitespace-nowrap">
               {% include 'partials/tx_actions.html' %}
             </td>
           </tr>
@@ -146,14 +128,16 @@
       </table>
     </div>
   {% else %}
-    <div class="card text-center py-8">
-      <p class="text-slate-500">No se encontraron resultados.</p>
-      <p class="text-xs text-slate-400 mt-2">Probá ampliar la tolerancia o cambiar la moneda.</p>
+    <div class="card text-center py-10 flex flex-col items-center gap-2">
+      <i class="ph ph-magnifying-glass text-3xl text-ink-3"></i>
+      <p class="text-ink-2">No se encontraron resultados.</p>
+      <p class="text-xs text-ink-3">Probá ampliar la tolerancia o cambiar la moneda.</p>
     </div>
   {% endif %}
 {% else %}
-  <div class="card text-center py-8 text-slate-400">
-    Ingresá una descripción o un monto para buscar.
+  <div class="card text-center py-12 flex flex-col items-center gap-2 text-ink-3">
+    <i class="ph ph-magnifying-glass text-3xl"></i>
+    <p>Ingresá una descripción o un monto para buscar.</p>
   </div>
 {% endif %}
 

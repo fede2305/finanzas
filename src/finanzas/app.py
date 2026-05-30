@@ -1267,7 +1267,7 @@ def recurring_delete(request: Request, gid: int):
 def _plot_treemap(cat_dist: list[tuple[int | None, str, str, float]],
                   div_id: str = "treemap-chart") -> str:
     if not cat_dist:
-        return "<p class='text-slate-400 text-sm'>Sin datos para mostrar.</p>"
+        return "<p class='text-sm' style='color:var(--ink-3)'>Sin datos para mostrar.</p>"
     ids = [c[0] if c[0] is not None else 0 for c in cat_dist]
     names = [c[1] for c in cat_dist]
     colors = [c[2] for c in cat_dist]
@@ -1295,7 +1295,7 @@ def _plot_treemap(cat_dist: list[tuple[int | None, str, str, float]],
 
 def _plot_trend(trend: list[tuple[str, float]]) -> str:
     if not trend:
-        return "<p class='text-slate-400 text-sm'>Sin datos.</p>"
+        return "<p class='text-sm' style='color:var(--ink-3)'>Sin datos.</p>"
     months = [m for m, _ in trend]
     vals = [v for _, v in trend]
     fig = go.Figure(go.Scatter(
@@ -1321,7 +1321,7 @@ def _plot_cuotas(cuotas: list[tuple[str, float]],
     history = history or []
     combined = history + cuotas
     if not combined or all(v == 0 for _, v in combined):
-        return "<p class='text-slate-400 text-sm'>No tenés cuotas pendientes 🎉</p>"
+        return "<p class='text-sm' style='color:var(--ink-3)'>No tenés cuotas pendientes.</p>"
 
     fig = go.Figure()
     show_legend = len(history) > 0
@@ -1344,7 +1344,7 @@ def _plot_cuotas(cuotas: list[tuple[str, float]],
     fig.add_trace(go.Bar(
         x=fc_months, y=fc_vals,
         name="Pendiente",
-        marker_color="#a855f7",  # purple-500 para forecast
+        marker_color="#3b82f6",  # accent: un solo color de marca en toda la UI
         text=[f"${v:,.0f}" if v > 0 else "" for v in fc_vals],
         textposition="outside",
         cliponaxis=False,

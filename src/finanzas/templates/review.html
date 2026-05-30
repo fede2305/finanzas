@@ -3,74 +3,70 @@
 {% block content %}
 
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Review inbox <span class="text-slate-400 dark:text-slate-500">({{ items|length }})</span></h1>
-  <a href="/" class="btn btn-ghost text-sm">← Volver</a>
+  <h1 class="text-2xl font-bold text-ink">Review inbox <span class="text-ink-3 tnum">({{ items|length }})</span></h1>
+  <a href="/" class="btn btn-ghost text-sm"><i class="ph ph-arrow-left"></i>Volver</a>
 </div>
 
 {% if not items %}
-  <div class="card text-center py-8">
-    <p class="text-emerald-600 text-lg font-medium">🎉 Todo categorizado</p>
-    <p class="text-slate-500 text-sm mt-2">Subí más resúmenes y volvé acá si aparecen merchants nuevos.</p>
+  <div class="card text-center py-12 flex flex-col items-center gap-2">
+    <i class="ph ph-check-circle text-4xl text-pos"></i>
+    <p class="text-ink text-lg font-medium">Todo categorizado</p>
+    <p class="text-ink-3 text-sm">Subí más resúmenes y volvé acá si aparecen merchants nuevos.</p>
   </div>
 {% else %}
 <div class="card">
-  <p class="text-xs text-slate-500 mb-3">
-    Asigná una categoría a cada fila. El checkbox <b>"Recordar"</b> guarda una regla automática.
+  <p class="text-xs text-ink-3 mb-3">
+    Asigná una categoría a cada fila. El check <b class="text-ink-2">"recordar"</b> guarda una regla automática.
   </p>
-  <table class="w-full text-sm">
-    <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
+  <table class="table">
+    <thead>
       <tr>
-        <th class="text-left py-2 font-medium hidden md:table-cell">Fecha</th>
-        <th class="text-left py-2 font-medium">Descripción</th>
-        <th class="text-right py-2 font-medium">Monto</th>
-        <th class="text-left py-2 font-medium hidden md:table-cell">Cuenta</th>
-        <th class="text-left py-2 font-medium" colspan="3">Categoría</th>
+        <th class="hidden md:table-cell">Fecha</th>
+        <th>Descripción</th>
+        <th class="text-right">Monto</th>
+        <th class="hidden md:table-cell">Cuenta</th>
+        <th colspan="3">Categoría</th>
       </tr>
     </thead>
     <tbody>
       {% for it in items %}
       {% set is_cuotas = it.installment_total and it.installment_total > 1 %}
       {% set total_estimado = it.amount * it.installment_total if is_cuotas else 0 %}
-      <tr id="tx-{{ it.id }}" class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 align-middle">
-        <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">{{ it.posted_at[:10] }}</td>
-        <td class="py-2">
-          <div class="text-xs text-slate-400 md:hidden">{{ it.posted_at[:10] }} · ···{{ it.card_last4 }}</div>
-          <div class="break-words font-medium" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
+      <tr id="tx-{{ it.id }}" class="row-hover align-middle">
+        <td class="text-ink-2 text-xs whitespace-nowrap hidden md:table-cell tnum">{{ it.posted_at[:10] }}</td>
+        <td>
+          <div class="text-xs text-ink-3 md:hidden tnum">{{ it.posted_at[:10] }} · ···{{ it.card_last4 }}</div>
+          <div class="break-words font-medium text-ink" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
           {% if is_cuotas %}
-            <div class="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-              📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
-              · total: {% if it.currency == 'USD' %}{{ currency_usd(total_estimado) }}{% else %}{{ currency_ars(total_estimado) }}{% endif %}
+            <div class="inline-flex items-center gap-1 text-xs text-warn-ink mt-0.5 tnum">
+              <i class="ph ph-calendar-dots"></i>cuota {{ it.installment_current }}/{{ it.installment_total }}
+              · total {% if it.currency == 'USD' %}{{ currency_usd(total_estimado) }}{% else %}{{ currency_ars(total_estimado) }}{% endif %}
             </div>
           {% endif %}
         </td>
-        <td class="py-2 text-right font-medium whitespace-nowrap">
+        <td class="text-right font-medium whitespace-nowrap tnum text-ink">
           {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}
         </td>
-        <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">···{{ it.card_last4 }}</td>
-        <td class="py-2" colspan="3">
-          <form hx-post="/review/{{ it.id }}"
-                hx-target="#tx-{{ it.id }}"
-                hx-swap="outerHTML"
+        <td class="text-ink-2 text-xs whitespace-nowrap hidden md:table-cell">···{{ it.card_last4 }}</td>
+        <td colspan="3">
+          <form hx-post="/review/{{ it.id }}" hx-target="#tx-{{ it.id }}" hx-swap="outerHTML"
                 class="flex items-center gap-2 flex-wrap">
-            <select name="category_id" required
-                    class="text-sm rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5 bg-white dark:bg-slate-800 dark:text-slate-100"
-                    onchange="updateSubcats(this, 'subcat-{{ it.id }}')">
-              <option value="">— Categoría —</option>
+            <select name="category_id" required class="field w-auto" onchange="updateSubcats(this, 'subcat-{{ it.id }}')">
+              <option value="">Categoría</option>
               {% for cat in tree %}
                 {% if cat.name != 'Sin categoría' %}
                 <option value="{{ cat.id }}" data-subs='{{ cat.subcategories | tojson }}'>{{ cat.name }}</option>
                 {% endif %}
               {% endfor %}
             </select>
-            <select id="subcat-{{ it.id }}" name="subcategory_id"
-                    class="text-sm rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1.5 bg-white dark:bg-slate-800 dark:text-slate-100">
-              <option value="">—</option>
+            <select id="subcat-{{ it.id }}" name="subcategory_id" class="field w-auto">
+              <option value="">Subcategoría</option>
             </select>
-            <label class="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
-              <input type="checkbox" name="remember" value="1" checked class="rounded">
+            <label class="inline-flex items-center gap-1.5 text-xs text-ink-2">
+              <input type="checkbox" name="remember" value="1" checked>
               recordar
             </label>
-            <button type="submit" class="btn btn-primary text-xs px-3 py-1.5">✓</button>
+            <button type="submit" class="btn btn-primary text-xs px-3 py-1.5"><i class="ph ph-check"></i>Guardar</button>
           </form>
         </td>
       </tr>
@@ -84,7 +80,7 @@ function updateSubcats(select, subSelectId) {
   const opt = select.options[select.selectedIndex];
   const subs = JSON.parse(opt.getAttribute("data-subs") || "[]");
   const target = document.getElementById(subSelectId);
-  target.innerHTML = '<option value="">—</option>' +
+  target.innerHTML = '<option value="">Subcategoría</option>' +
     subs.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
 }
 </script>

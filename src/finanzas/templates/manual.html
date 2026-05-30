@@ -2,43 +2,37 @@
 {% block title %}Manuales · finanzas{% endblock %}
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-6 text-slate-900 dark:text-white">Gastos manuales</h1>
+<h1 class="text-2xl font-bold mb-6 text-ink">Gastos manuales</h1>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  <div class="card lg:col-span-1">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Cargar nuevo</h2>
+  <div class="card lg:col-span-1 self-start">
+    <h2 class="section-label mb-3">Cargar nuevo</h2>
     <form method="post" action="/manual" class="space-y-3">
       <div>
-        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Fecha</label>
-        <input type="date" name="posted_at" required
-               class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
+        <label class="block text-xs font-medium text-ink-2 mb-1">Fecha</label>
+        <input type="date" name="posted_at" required class="field">
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Descripción</label>
-        <input type="text" name="description" required
-               class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600"
-               placeholder="Ej: Alquiler de mayo">
+        <label class="block text-xs font-medium text-ink-2 mb-1">Descripción</label>
+        <input type="text" name="description" required class="field" placeholder="Ej: Alquiler de mayo">
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Monto</label>
-          <input type="number" step="0.01" name="amount" required
-                 class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
+          <label class="block text-xs font-medium text-ink-2 mb-1">Monto</label>
+          <input type="number" step="0.01" name="amount" required class="field tnum">
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Moneda</label>
-          <select name="currency" class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
+          <label class="block text-xs font-medium text-ink-2 mb-1">Moneda</label>
+          <select name="currency" class="field">
             <option value="ARS">ARS</option>
             <option value="USD">USD</option>
           </select>
         </div>
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Categoría</label>
-        <select name="category_id" required id="manual-cat"
-                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600"
-                onchange="updateManualSubs()">
-          <option value="">— Elegí —</option>
+        <label class="block text-xs font-medium text-ink-2 mb-1">Categoría</label>
+        <select name="category_id" required id="manual-cat" class="field" onchange="updateManualSubs()">
+          <option value="">Elegí categoría</option>
           {% for cat in tree %}
             {% if cat.name != 'Sin categoría' %}
               <option value="{{ cat.id }}" data-subs='{{ cat.subcategories | tojson }}'>{{ cat.name }}</option>
@@ -47,70 +41,66 @@
         </select>
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Subcategoría</label>
-        <select name="subcategory_id" id="manual-sub"
-                class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 bg-white dark:bg-slate-800 dark:border-slate-600">
-          <option value="">—</option>
+        <label class="block text-xs font-medium text-ink-2 mb-1">Subcategoría</label>
+        <select name="subcategory_id" id="manual-sub" class="field">
+          <option value="">Subcategoría</option>
         </select>
       </div>
-      <div class="border-t border-slate-200 dark:border-slate-700 pt-3">
-        <label class="inline-flex items-center gap-2 text-sm">
+      <div class="border-t border-border pt-3">
+        <label class="inline-flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" name="is_fixed" value="1" id="is_fixed"
-                 onchange="document.getElementById('rrule-box').classList.toggle('hidden', !this.checked)"
-                 class="rounded">
+                 onchange="document.getElementById('rrule-box').classList.toggle('hidden', !this.checked)">
           Es un gasto fijo (recurrente)
         </label>
         <div id="rrule-box" class="hidden mt-2">
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Recurrencia (rrule)</label>
-          <input type="text" name="recurrence_rule"
-                 value="FREQ=MONTHLY;BYMONTHDAY=1"
-                 class="w-full text-sm rounded-md border border-slate-300 px-2 py-1.5 dark:bg-slate-800 dark:border-slate-600">
+          <label class="block text-xs font-medium text-ink-2 mb-1">Recurrencia (rrule)</label>
+          <input type="text" name="recurrence_rule" value="FREQ=MONTHLY;BYMONTHDAY=1" class="field">
         </div>
       </div>
-      <button type="submit" class="btn btn-primary w-full">Guardar</button>
+      <button type="submit" class="btn btn-primary w-full"><i class="ph ph-check"></i>Guardar</button>
     </form>
   </div>
 
   <div class="card lg:col-span-2">
-    <h2 class="text-sm font-semibold mb-3 text-slate-600 dark:text-slate-300 uppercase tracking-wide">Cargados ({{ items|length }})</h2>
+    <h2 class="section-label mb-3">Cargados ({{ items|length }})</h2>
     {% if items %}
-    <table class="w-full text-sm">
-      <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
+    <table class="table">
+      <thead>
         <tr>
-          <th class="text-left py-2 font-medium">Fecha</th>
-          <th class="text-left py-2 font-medium">Descripción</th>
-          <th class="text-left py-2 font-medium hidden md:table-cell">Categoría</th>
-          <th class="text-right py-2 font-medium">Monto</th>
-          <th class="text-left py-2 font-medium hidden md:table-cell">Fijo</th>
+          <th>Fecha</th>
+          <th>Descripción</th>
+          <th class="hidden md:table-cell">Categoría</th>
+          <th class="text-right">Monto</th>
+          <th class="hidden md:table-cell">Fijo</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
       {% for m in items %}
-        <tr class="border-b border-slate-100 dark:border-slate-700" data-mid="{{ m.id }}">
-          <td class="py-2 text-slate-500 text-xs whitespace-nowrap edit-cell"
+        <tr data-mid="{{ m.id }}" class="align-middle">
+          <td class="text-ink-2 text-xs whitespace-nowrap edit-cell tnum"
               data-field="posted_at" data-type="date" data-value="{{ m.posted_at }}">{{ m.posted_at }}</td>
-          <td class="py-2 edit-cell" data-field="description" data-type="text" data-value="{{ m.description }}">
-            <div class="break-words">{{ m.description }}</div>
-            <div class="text-xs text-slate-400 dark:text-slate-500 md:hidden">{{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}{% if m.is_fixed %} · fijo{% endif %}</div>
+          <td class="edit-cell" data-field="description" data-type="text" data-value="{{ m.description }}">
+            <div class="break-words text-ink">{{ m.description }}</div>
+            <div class="text-xs text-ink-3 md:hidden">{{ m.cat or 'sin cat.' }}{% if m.sub %} / {{ m.sub }}{% endif %}{% if m.is_fixed %} · fijo{% endif %}</div>
           </td>
-          <td class="py-2 text-xs hidden md:table-cell edit-cell"
+          <td class="text-xs hidden md:table-cell edit-cell text-ink-2"
               data-field="category" data-type="category"
               data-cat-id="{{ m.category_id or '' }}" data-sub-id="{{ m.subcategory_id or '' }}">
-            {{ m.cat or '—' }}{% if m.sub %} / {{ m.sub }}{% endif %}
+            {{ m.cat or '-' }}{% if m.sub %} / {{ m.sub }}{% endif %}
           </td>
-          <td class="py-2 text-right font-medium whitespace-nowrap edit-cell"
+          <td class="text-right font-medium whitespace-nowrap edit-cell tnum text-ink"
               data-field="amount" data-type="number" data-value="{{ m.amount }}" data-currency="{{ m.currency }}">
             {% if m.currency == 'USD' %}{{ currency_usd(m.amount) }}{% else %}{{ currency_ars(m.amount) }}{% endif %}
           </td>
-          <td class="py-2 text-xs hidden md:table-cell edit-cell"
+          <td class="text-xs hidden md:table-cell edit-cell"
               data-field="is_fixed" data-type="bool" data-value="{{ '1' if m.is_fixed else '0' }}">
-            {% if m.is_fixed %}<span class="chip bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">fijo</span>{% else %}<span class="text-slate-400">—</span>{% endif %}
+            {% if m.is_fixed %}<span class="chip badge-accent">fijo</span>{% else %}<span class="text-ink-3">-</span>{% endif %}
           </td>
-          <td class="py-2 text-right">
+          <td class="text-right">
             <form method="post" action="/manual/{{ m.id }}/delete" class="inline">
-              <button class="text-xs text-rose-500 hover:underline" type="submit"
-                      onclick="return confirm('¿Borrar este gasto manual?')">borrar</button>
+              <button class="icon-btn w-7 h-7 text-ink-3 hover:text-neg" type="submit"
+                      title="Borrar" onclick="return confirm('¿Borrar este gasto manual?')"><i class="ph ph-trash text-sm"></i></button>
             </form>
           </td>
         </tr>
@@ -118,10 +108,18 @@
       </tbody>
     </table>
     {% else %}
-      <p class="text-slate-400 text-sm">Todavía no cargaste gastos manuales.</p>
+      <div class="text-sm text-ink-3 flex flex-col items-start gap-2 py-2">
+        <i class="ph ph-pencil-simple-line text-2xl"></i>
+        <p>Todavía no cargaste gastos manuales.</p>
+      </div>
     {% endif %}
   </div>
 </div>
+
+<style>
+  .edit-cell { cursor: pointer; transition: background-color var(--dur-fast) var(--ease-out); border-radius: 6px; }
+  @media (hover: hover) { .edit-cell:hover { background: var(--surface-hover); } }
+</style>
 
 <script>
 function updateManualSubs() {
@@ -129,11 +127,10 @@ function updateManualSubs() {
   const opt = sel.options[sel.selectedIndex];
   const subs = JSON.parse(opt.getAttribute("data-subs") || "[]");
   const target = document.getElementById('manual-sub');
-  target.innerHTML = '<option value="">—</option>' +
+  target.innerHTML = '<option value="">Subcategoría</option>' +
     subs.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
 }
 
-// Category tree for inline editing
 const CATEGORY_TREE = [
   {% for cat in tree %}
     {% if cat.name != 'Sin categoría' %}
@@ -176,8 +173,8 @@ function startEdit(cell) {
     saveField(mid, 'is_fixed', newVal).then(() => {
       cell.dataset.value = newVal ? '1' : '0';
       cell.innerHTML = newVal
-        ? '<span class="chip bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">fijo</span>'
-        : '<span class="text-slate-400">—</span>';
+        ? '<span class="chip badge-accent">fijo</span>'
+        : '<span class="text-ink-3">-</span>';
     }).catch(err => alert('Error: ' + err.message));
     return;
   }
@@ -193,7 +190,7 @@ function startEdit(cell) {
   input.type = type === 'number' ? 'number' : (type === 'date' ? 'date' : 'text');
   if (type === 'number') input.step = '0.01';
   input.value = oldValue;
-  input.className = 'w-full text-sm border border-blue-500 rounded px-1 py-0.5 bg-white dark:bg-slate-800';
+  input.className = 'field';
   cell.innerHTML = '';
   cell.appendChild(input);
   input.focus();
@@ -208,16 +205,14 @@ function startEdit(cell) {
       return;
     }
     try {
-      const sendField = field;
-      await saveField(mid, sendField, newValue);
+      await saveField(mid, field, newValue);
       cell.dataset.value = newValue;
       if (field === 'amount') {
         const currency = cell.dataset.currency;
         cell.innerHTML = fmtAmount(parseFloat(newValue), currency);
       } else if (field === 'description') {
-        // preserve mobile subtitle
         const subtitle = oldHTML.match(/<div class="text-xs[\s\S]*?<\/div>/);
-        cell.innerHTML = `<div class="break-words">${escapeHtml(newValue)}</div>` + (subtitle ? subtitle[0] : '');
+        cell.innerHTML = `<div class="break-words text-ink">${escapeHtml(newValue)}</div>` + (subtitle ? subtitle[0] : '');
       } else {
         cell.textContent = newValue;
       }
@@ -243,17 +238,17 @@ function startCategoryEdit(cell, mid) {
   wrap.className = 'flex gap-1';
 
   const catSel = document.createElement('select');
-  catSel.className = 'text-xs border border-blue-500 rounded px-1 bg-white dark:bg-slate-800';
-  catSel.innerHTML = '<option value="">—</option>' +
+  catSel.className = 'field w-auto text-xs';
+  catSel.innerHTML = '<option value="">Categoría</option>' +
     CATEGORY_TREE.map(c => `<option value="${c.id}" ${c.id == oldCatId ? 'selected' : ''}>${c.name}</option>`).join('');
 
   const subSel = document.createElement('select');
-  subSel.className = 'text-xs border border-blue-500 rounded px-1 bg-white dark:bg-slate-800';
+  subSel.className = 'field w-auto text-xs';
 
   function renderSubs() {
     const cat = CATEGORY_TREE.find(c => c.id == catSel.value);
     const subs = cat ? cat.subs : [];
-    subSel.innerHTML = '<option value="">—</option>' +
+    subSel.innerHTML = '<option value="">Subcategoría</option>' +
       subs.map(s => `<option value="${s.id}" ${s.id == oldSubId ? 'selected' : ''}>${s.name}</option>`).join('');
   }
   renderSubs();
@@ -267,9 +262,7 @@ function startCategoryEdit(cell, mid) {
 
   let done = false;
   const save = async (e) => {
-    // Avoid saving twice if blur fires on both selects
     if (done) return;
-    // If focus is still inside this cell, wait
     setTimeout(async () => {
       if (cell.contains(document.activeElement)) return;
       if (done) return; done = true;
@@ -285,7 +278,7 @@ function startCategoryEdit(cell, mid) {
         const subName = newSubId && newCatId
           ? CATEGORY_TREE.find(c => c.id == newCatId)?.subs.find(s => s.id == newSubId)?.name
           : null;
-        cell.textContent = (catName || '—') + (subName ? ' / ' + subName : '');
+        cell.textContent = (catName || '-') + (subName ? ' / ' + subName : '');
       } catch (err) {
         alert('Error: ' + err.message);
         cell.innerHTML = oldHTML;
@@ -309,7 +302,6 @@ function escapeHtml(s) {
 }
 
 document.querySelectorAll('.edit-cell').forEach(cell => {
-  cell.style.cursor = 'pointer';
   cell.title = 'Click para editar';
   cell.addEventListener('click', () => startEdit(cell));
 });

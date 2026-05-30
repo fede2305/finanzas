@@ -6,22 +6,22 @@
   {% set has_participants = (it.participants or [])|length > 0 %}
 {% endif %}
 {% set has_note = it.notes and it.notes.strip() %}
-<div class="flex flex-col gap-1 items-end">
+<div class="flex flex-col gap-1 items-end text-xs">
   <button type="button"
-          class="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          class="inline-flex items-center gap-1 text-ink-2 hover:text-accent transition-colors"
           onclick="document.getElementById('share-form-{{ it.id }}').classList.toggle('hidden'); ['cat-form-{{ it.id }}', 'note-form-{{ it.id }}'].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add('hidden'); })">
-    {% if has_participants %}editar{% else %}compartir{% endif %}
+    <i class="ph ph-users"></i>{% if has_participants %}editar{% else %}compartir{% endif %}
   </button>
   <button type="button"
-          class="text-xs text-slate-500 dark:text-slate-400 hover:text-amber-700 dark:hover:text-amber-400 hover:underline"
+          class="inline-flex items-center gap-1 text-ink-2 hover:text-accent transition-colors"
           onclick="document.getElementById('note-form-{{ it.id }}').classList.toggle('hidden'); ['share-form-{{ it.id }}', 'cat-form-{{ it.id }}'].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add('hidden'); })">
-    {% if has_note %}nota ✎{% else %}+ nota{% endif %}
+    <i class="ph {{ 'ph-note-pencil' if has_note else 'ph-note' }}"></i>{% if has_note %}nota{% else %}nota{% endif %}
   </button>
   {% if tree is defined %}
   <button type="button"
-          class="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+          class="inline-flex items-center gap-1 text-ink-2 hover:text-accent transition-colors"
           onclick="document.getElementById('cat-form-{{ it.id }}').classList.toggle('hidden'); ['share-form-{{ it.id }}', 'note-form-{{ it.id }}'].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add('hidden'); })">
-    categoría
+    <i class="ph ph-tag"></i>categoría
   </button>
   {% endif %}
 </div>

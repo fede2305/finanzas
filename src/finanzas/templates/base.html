@@ -3,198 +3,447 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>{% block title %}Finanzas{% endblock %}</title>
+
   <script>
-    // Apply dark mode before render to avoid flash
-    (function() {
-      const stored = localStorage.getItem('theme');
+    // Apply theme before first paint to avoid flash.
+    (function () {
+      var stored = localStorage.getItem('theme');
       if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
       }
     })();
   </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { darkMode: 'class' };
+    // Map semantic CSS-variable tokens into Tailwind so utilities (bg-surface,
+    // text-ink, border-border, bg-accent ...) resolve to the right value in both
+    // themes with no dark: twin needed. The vars themselves swap under .dark.
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            bg: 'var(--bg)',
+            surface: 'var(--surface)',
+            'surface-2': 'var(--surface-2)',
+            'surface-hover': 'var(--surface-hover)',
+            border: 'var(--border)',
+            'border-strong': 'var(--border-strong)',
+            ink: 'var(--ink)',
+            'ink-2': 'var(--ink-2)',
+            'ink-3': 'var(--ink-3)',
+            accent: {
+              DEFAULT: 'var(--accent)',
+              hover: 'var(--accent-hover)',
+              soft: 'var(--accent-soft)',
+              'soft-ink': 'var(--accent-soft-ink)',
+              fg: 'var(--accent-fg)',
+            },
+            pos: { DEFAULT: 'var(--pos)', soft: 'var(--pos-soft)', ink: 'var(--pos-ink)' },
+            neg: { DEFAULT: 'var(--neg)', soft: 'var(--neg-soft)', ink: 'var(--neg-ink)' },
+            warn: { DEFAULT: 'var(--warn)', soft: 'var(--warn-soft)', ink: 'var(--warn-ink)' },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+          borderRadius: { card: '14px' },
+          boxShadow: {
+            soft: 'var(--shadow-sm)',
+            lift: 'var(--shadow-md)',
+          },
+          transitionTimingFunction: {
+            'out-expo': 'cubic-bezier(0.23, 1, 0.32, 1)',
+            'in-out-quint': 'cubic-bezier(0.77, 0, 0.175, 1)',
+          },
+        },
+      },
+    };
   </script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+
   <style>
-    body { background: #f8fafc; }
-    .dark body { background: #0f172a; }
+    /* ----------------------------------------------------------------------
+       Design tokens. OKLCH. One accent (blue, the existing brand, refined).
+       Semantics: pos=recuperado/baja-gasto · warn=pendiente · neg=alerta/sube.
+    ---------------------------------------------------------------------- */
+    :root {
+      --bg: oklch(0.985 0.003 250);
+      --surface: oklch(1 0 0);
+      --surface-2: oklch(0.992 0.003 250);
+      --surface-hover: oklch(0.965 0.005 255);
+      --border: oklch(0.922 0.005 255);
+      --border-strong: oklch(0.86 0.006 255);
+      --ink: oklch(0.24 0.015 260);
+      --ink-2: oklch(0.47 0.014 260);
+      --ink-3: oklch(0.62 0.012 260);
+
+      --accent: oklch(0.55 0.17 256);
+      --accent-hover: oklch(0.50 0.17 256);
+      --accent-press: oklch(0.46 0.16 256);
+      --accent-fg: oklch(0.99 0 0);
+      --accent-soft: oklch(0.955 0.028 256);
+      --accent-soft-ink: oklch(0.45 0.15 256);
+      --ring: oklch(0.55 0.17 256 / 0.40);
+
+      --pos: oklch(0.60 0.14 158);
+      --pos-soft: oklch(0.95 0.04 158);
+      --pos-ink: oklch(0.45 0.12 158);
+      --neg: oklch(0.585 0.20 22);
+      --neg-soft: oklch(0.95 0.035 22);
+      --neg-ink: oklch(0.50 0.18 22);
+      --warn: oklch(0.70 0.15 70);
+      --warn-soft: oklch(0.95 0.05 80);
+      --warn-ink: oklch(0.52 0.12 65);
+
+      --shadow-sm: 0 1px 2px oklch(0.3 0.03 260 / 0.05), 0 1px 3px oklch(0.3 0.03 260 / 0.06);
+      --shadow-md: 0 4px 12px oklch(0.3 0.03 260 / 0.08), 0 2px 4px oklch(0.3 0.03 260 / 0.05);
+
+      --r-sm: 8px;
+      --r: 10px;
+      --r-lg: 14px;
+
+      --dur-fast: 130ms;
+      --dur: 190ms;
+      --dur-slow: 260ms;
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+      --z-nav: 30;
+      --z-dropdown: 40;
+      --z-backdrop: 50;
+      --z-modal: 60;
+      --z-toast: 70;
+    }
+
+    .dark {
+      --bg: oklch(0.205 0.018 264);
+      --surface: oklch(0.255 0.02 264);
+      --surface-2: oklch(0.235 0.02 264);
+      --surface-hover: oklch(0.305 0.022 264);
+      --border: oklch(0.335 0.022 264);
+      --border-strong: oklch(0.43 0.024 264);
+      --ink: oklch(0.965 0.004 260);
+      --ink-2: oklch(0.74 0.016 260);
+      --ink-3: oklch(0.60 0.016 260);
+
+      --accent: oklch(0.62 0.165 256);
+      --accent-hover: oklch(0.68 0.165 256);
+      --accent-press: oklch(0.58 0.16 256);
+      --accent-fg: oklch(0.99 0 0);
+      --accent-soft: oklch(0.34 0.07 256);
+      --accent-soft-ink: oklch(0.85 0.10 256);
+      --ring: oklch(0.62 0.165 256 / 0.50);
+
+      --pos: oklch(0.70 0.14 158);
+      --pos-soft: oklch(0.33 0.07 158);
+      --pos-ink: oklch(0.82 0.12 158);
+      --neg: oklch(0.68 0.18 22);
+      --neg-soft: oklch(0.33 0.09 22);
+      --neg-ink: oklch(0.82 0.13 22);
+      --warn: oklch(0.78 0.14 75);
+      --warn-soft: oklch(0.34 0.06 75);
+      --warn-ink: oklch(0.85 0.11 78);
+
+      --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.30), 0 1px 3px oklch(0 0 0 / 0.25);
+      --shadow-md: 0 6px 16px oklch(0 0 0 / 0.40), 0 2px 6px oklch(0 0 0 / 0.30);
+    }
+
+    /* ----------------------------------------------------------------------
+       Base
+    ---------------------------------------------------------------------- */
+    * { -webkit-tap-highlight-color: transparent; }
+    html { scrollbar-gutter: stable; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: -0.011em;
+      font-feature-settings: 'cv05' 1, 'ss03' 1;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3 { letter-spacing: -0.02em; }
+    /* Money & data align on the decimal: tabular figures everywhere it counts. */
+    table, .tnum, .amount { font-variant-numeric: tabular-nums; }
+
+    a { color: inherit; }
+    ::selection { background: oklch(0.55 0.17 256 / 0.22); }
+    .dark ::selection { background: oklch(0.62 0.165 256 / 0.32); }
+
+    /* One focus ring for the whole app (keyboard only). */
+    :focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring); border-radius: var(--r-sm); }
+    input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+    [hidden] { display: none !important; }
+
+    /* ----------------------------------------------------------------------
+       Components
+    ---------------------------------------------------------------------- */
     .card {
-      background: white;
-      border-radius: 0.75rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
       padding: 1.25rem;
     }
-    .dark .card {
-      background: #1e293b;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+      padding: 0.5rem 0.9rem; border-radius: var(--r-sm);
+      font-weight: 500; font-size: 0.875rem; line-height: 1.25rem;
+      border: 1px solid transparent; cursor: pointer; user-select: none;
+      transition: background-color var(--dur-fast) var(--ease-out),
+                  border-color var(--dur-fast) var(--ease-out),
+                  color var(--dur-fast) var(--ease-out),
+                  box-shadow var(--dur-fast) var(--ease-out),
+                  transform var(--dur-fast) var(--ease-out);
     }
-    .chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
-    .btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.15s; }
-    .btn-primary { background: #3b82f6; color: white; }
-    .btn-primary:hover { background: #2563eb; }
-    .btn-ghost { background: transparent; color: #475569; }
-    .btn-ghost:hover { background: #e2e8f0; }
-    .dark .btn-ghost { color: #94a3b8; }
-    .dark .btn-ghost:hover { background: #334155; }
-    /* Form elements dark mode */
-    .dark input:not([type=checkbox]):not([type=radio]),
-    .dark select,
-    .dark textarea {
-      background-color: #1e293b;
-      border-color: #475569;
-      color: #f1f5f9;
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled, .btn[disabled] { opacity: 0.5; pointer-events: none; }
+    .btn-primary { background: var(--accent); color: var(--accent-fg); }
+    .btn-primary:active { background: var(--accent-press); }
+    .btn-ghost { background: transparent; color: var(--ink-2); }
+    .btn-secondary { background: var(--surface); border-color: var(--border); color: var(--ink); box-shadow: var(--shadow-sm); }
+    .btn-danger { background: transparent; border-color: var(--border); color: var(--neg); }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-primary:hover { background: var(--accent-hover); }
+      .btn-ghost:hover { background: var(--surface-hover); color: var(--ink); }
+      .btn-secondary:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+      .btn-danger:hover { background: var(--neg-soft); border-color: var(--neg); }
     }
-    .dark input::placeholder { color: #64748b; }
+
+    /* Form controls share one vocabulary across every screen. */
+    .field {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 0.45rem 0.65rem;
+      font-size: 0.875rem; line-height: 1.25rem;
+      color: var(--ink);
+      transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+    }
+    .field::placeholder { color: var(--ink-3); }
+    .field:focus, .field:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+    select.field { -webkit-appearance: none; appearance: none; padding-right: 1.9rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 0.55rem center; }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.15rem 0.55rem; border-radius: 9999px;
+      font-size: 0.75rem; font-weight: 500; line-height: 1.1rem;
+    }
+    .badge-pos { background: var(--pos-soft); color: var(--pos-ink); }
+    .badge-warn { background: var(--warn-soft); color: var(--warn-ink); }
+    .badge-neg { background: var(--neg-soft); color: var(--neg-ink); }
+    .badge-accent { background: var(--accent-soft); color: var(--accent-soft-ink); }
+    .badge-muted { background: var(--surface-hover); color: var(--ink-2); }
+
+    /* Toggle pill (used for shared-expense participants). Carries real state. */
+    .toggle { display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.15rem 0.55rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface); color: var(--ink-2);
+      cursor: pointer;
+      transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+                  color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+    .toggle:active { transform: scale(0.97); }
+    .toggle[data-on="pos"]  { background: var(--pos-soft); border-color: transparent; color: var(--pos-ink); }
+    .toggle[data-on="warn"] { background: var(--warn-soft); border-color: transparent; color: var(--warn-ink); }
+
+    /* Progress track (cuotas avance, upload). */
+    .track { height: 0.5rem; border-radius: 9999px; background: var(--surface-hover); overflow: hidden; }
+    .track > span { display: block; height: 100%; border-radius: 9999px; background: var(--accent);
+      transition: width var(--dur-slow) var(--ease-out); }
+
+    /* Data tables. */
+    .table { width: 100%; font-size: 0.875rem; }
+    .table thead th { text-align: left; font-weight: 500; font-size: 0.6875rem; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--ink-3); padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .table tbody td { padding: 0.55rem 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .table tbody tr { transition: background-color var(--dur-fast) var(--ease-out); }
+    .table tbody tr:last-child td { border-bottom: 0; }
+    @media (hover: hover) { .table tbody tr.row-hover:hover { background: var(--surface-hover); } }
+
+    .section-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.045em; color: var(--ink-2); }
+
+    /* Skeleton shimmer for loading content (no spinners in content). */
+    .skeleton { position: relative; overflow: hidden; background: var(--surface-hover); border-radius: var(--r-sm); }
+    .skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.18), transparent);
+      animation: shimmer 1.3s var(--ease-in-out) infinite; }
+    @keyframes shimmer { to { transform: translateX(100%); } }
+
+    /* ----------------------------------------------------------------------
+       Motion — interaction only, never page-load choreography (product UI).
+    ---------------------------------------------------------------------- */
+    /* Inline expanders (share / note / category rows) reveal their content. */
+    tr[id^="share-form-"]:not(.hidden) > td > *,
+    tr[id^="note-form-"]:not(.hidden) > td > *,
+    tr[id^="cat-form-"]:not(.hidden) > td > * { animation: revealRow var(--dur) var(--ease-out) both; }
+    @keyframes revealRow { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+    /* htmx: dim the form while a request is in flight (real loading state),
+       and ease swapped rows in instead of snapping. */
+    .htmx-request.htmx-request { opacity: 0.55; transition: opacity var(--dur-fast) var(--ease-out); }
+    form.htmx-request button[type=submit] { cursor: progress; }
+    tr.htmx-added, tr.htmx-settling { animation: settleIn var(--dur) var(--ease-out); }
+    @keyframes settleIn { from { opacity: 0; } to { opacity: 1; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+      .btn:active { transform: none; }
+    }
+
+    /* ----------------------------------------------------------------------
+       Navigation
+    ---------------------------------------------------------------------- */
+    .topnav { position: sticky; top: 0; z-index: var(--z-nav);
+      background: color-mix(in oklch, var(--surface-2) 82%, transparent);
+      backdrop-filter: saturate(180%) blur(10px); -webkit-backdrop-filter: saturate(180%) blur(10px);
+      border-bottom: 1px solid var(--border); }
+    .nav-link { position: relative; display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.4rem 0.7rem; border-radius: var(--r-sm); font-size: 0.875rem; color: var(--ink-2);
+      transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+    @media (hover: hover) { .nav-link:hover { color: var(--ink); background: var(--surface-hover); } }
+    .nav-link[aria-current="page"] { color: var(--accent-soft-ink); background: var(--accent-soft); }
+    .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem;
+      border-radius: var(--r-sm); color: var(--ink-2);
+      transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+    .icon-btn:active { transform: scale(0.94); }
+    @media (hover: hover) { .icon-btn:hover { background: var(--surface-hover); color: var(--ink); } }
+    .ph { display: inline-block; line-height: 1; vertical-align: -0.075em; }
   </style>
+  {% block head %}{% endblock %}
 </head>
-<body class="text-slate-800 dark:text-slate-100">
-  <nav class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <a href="/" class="text-xl font-bold tracking-tight">finanzas</a>
+<body>
+  {% set path = request.url.path if request else '/' %}
+  <nav class="topnav">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+      <a href="/" class="flex items-center gap-2 font-semibold tracking-tight text-ink shrink-0">
+        <i class="ph-fill ph-chart-pie-slice text-accent text-xl"></i>
+        finanzas
+      </a>
 
       <!-- Desktop nav -->
-      <div class="hidden md:flex items-center gap-1">
-        <a href="/" class="btn btn-ghost text-sm">Dashboard</a>
-        <a href="/review" class="btn btn-ghost text-sm relative">
-          Review inbox
+      <div class="hidden md:flex items-center gap-0.5">
+        <a href="/" class="nav-link" {% if path == '/' %}aria-current="page"{% endif %}>Dashboard</a>
+        <a href="/review" class="nav-link" {% if path.startswith('/review') %}aria-current="page"{% endif %}>
+          Review
           {% if uncat_count is defined and uncat_count > 0 %}
-            <span class="absolute -top-1 -right-2 bg-rose-500 text-white text-xs px-1.5 py-0.5 rounded-full">{{ uncat_count }}</span>
+            <span class="chip badge-neg ml-0.5 px-1.5 tnum">{{ uncat_count }}</span>
           {% endif %}
         </a>
-        <a href="/buscar" class="btn btn-ghost text-sm">Buscar</a>
-        <a href="/cuotas" class="btn btn-ghost text-sm">Cuotas</a>
-        <a href="/pendientes" class="btn btn-ghost text-sm">Te deben</a>
-        <a href="/manual" class="btn btn-ghost text-sm">Manuales</a>
-        <a href="/categories" class="btn btn-ghost text-sm">Categorías</a>
+        <a href="/buscar" class="nav-link" {% if path.startswith('/buscar') %}aria-current="page"{% endif %}>Buscar</a>
+        <a href="/cuotas" class="nav-link" {% if path.startswith('/cuotas') %}aria-current="page"{% endif %}>Cuotas</a>
+        <a href="/pendientes" class="nav-link" {% if path.startswith('/pendientes') %}aria-current="page"{% endif %}>Te deben</a>
+        <a href="/manual" class="nav-link" {% if path.startswith('/manual') %}aria-current="page"{% endif %}>Manuales</a>
+        <a href="/categories" class="nav-link" {% if path.startswith('/categories') %}aria-current="page"{% endif %}>Categorías</a>
 
-        <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+        <div class="w-px h-5 bg-border mx-1.5"></div>
 
-        <!-- Dark mode toggle -->
-        <button id="dark-toggle" onclick="toggleDark()"
-                class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                title="Cambiar tema">
-          <svg id="icon-sun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
-          </svg>
-          <svg id="icon-moon" class="w-4 h-4 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-          </svg>
+        <button onclick="toggleDark()" class="icon-btn" title="Cambiar tema" aria-label="Cambiar tema">
+          <i class="ph ph-moon text-lg dark:hidden"></i>
+          <i class="ph ph-sun text-lg hidden dark:inline-block"></i>
         </button>
-
-        <!-- Upload icon button -->
-        <a href="/upload" title="Subir resumen"
-           class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-          </svg>
+        <a href="/upload" class="icon-btn" title="Subir resumen" aria-label="Subir resumen">
+          <i class="ph ph-upload-simple text-lg"></i>
         </a>
-
         {% if user is defined and user %}
           {% if user.picture %}
-            <img src="{{ user.picture }}" alt="{{ user.name }}"
-                 class="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-600"
-                 referrerpolicy="no-referrer">
+            <img src="{{ user.picture }}" alt="{{ user.name }}" referrerpolicy="no-referrer"
+                 class="w-7 h-7 rounded-full border border-border ml-1">
           {% endif %}
-          <a href="/logout" class="btn btn-ghost text-sm">Salir</a>
+          <a href="/logout" class="nav-link" title="Cerrar sesión" aria-label="Cerrar sesión">
+            <i class="ph ph-sign-out text-base"></i>
+          </a>
         {% endif %}
       </div>
 
-      <!-- Mobile right: dark toggle + hamburger -->
-      <div class="flex items-center gap-1 md:hidden">
-        <button onclick="toggleDark()"
-                class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
-          <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
-          </svg>
-          <svg class="w-4 h-4 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-          </svg>
+      <!-- Mobile right -->
+      <div class="flex items-center gap-0.5 md:hidden">
+        <button onclick="toggleDark()" class="icon-btn" aria-label="Cambiar tema">
+          <i class="ph ph-moon text-lg dark:hidden"></i>
+          <i class="ph ph-sun text-lg hidden dark:inline-block"></i>
         </button>
-        <button id="nav-toggle" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Menú">
-          <svg id="icon-open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-          <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+        <button id="nav-toggle" class="icon-btn" aria-label="Menú" aria-expanded="false">
+          <i id="icon-open" class="ph ph-list text-xl"></i>
+          <i id="icon-close" class="ph ph-x text-xl hidden"></i>
         </button>
       </div>
     </div>
 
     <!-- Mobile menu -->
-    <div id="nav-menu" class="hidden md:hidden border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 space-y-0.5">
-      <a href="/" class="flex items-center px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Dashboard</a>
-      <a href="/upload" class="flex items-center px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Subir resumen</a>
-      <a href="/review" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
+    <div id="nav-menu" class="hidden md:hidden border-t border-border bg-surface-2 px-3 py-2 space-y-0.5">
+      <a href="/" class="nav-link w-full" {% if path == '/' %}aria-current="page"{% endif %}>Dashboard</a>
+      <a href="/upload" class="nav-link w-full" {% if path.startswith('/upload') %}aria-current="page"{% endif %}>Subir resumen</a>
+      <a href="/review" class="nav-link w-full justify-between" {% if path.startswith('/review') %}aria-current="page"{% endif %}>
         Review inbox
-        {% if uncat_count is defined and uncat_count > 0 %}
-          <span class="bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full">{{ uncat_count }}</span>
-        {% endif %}
+        {% if uncat_count is defined and uncat_count > 0 %}<span class="chip badge-neg tnum">{{ uncat_count }}</span>{% endif %}
       </a>
-      <a href="/buscar" class="flex items-center px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Buscar</a>
-      <a href="/cuotas" class="flex items-center px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Cuotas</a>
-      <a href="/pendientes" class="flex items-center px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Te deben</a>
-      <a href="/manual" class="flex items-center px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Manuales</a>
-      <a href="/categories" class="flex items-center px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Categorías</a>
+      <a href="/buscar" class="nav-link w-full" {% if path.startswith('/buscar') %}aria-current="page"{% endif %}>Buscar</a>
+      <a href="/cuotas" class="nav-link w-full" {% if path.startswith('/cuotas') %}aria-current="page"{% endif %}>Cuotas</a>
+      <a href="/pendientes" class="nav-link w-full" {% if path.startswith('/pendientes') %}aria-current="page"{% endif %}>Te deben</a>
+      <a href="/manual" class="nav-link w-full" {% if path.startswith('/manual') %}aria-current="page"{% endif %}>Manuales</a>
+      <a href="/categories" class="nav-link w-full" {% if path.startswith('/categories') %}aria-current="page"{% endif %}>Categorías</a>
       {% if user is defined and user %}
-        <div class="border-t border-slate-100 dark:border-slate-700 mt-2 pt-2 flex items-center justify-between px-3 py-2">
-          <div class="flex items-center gap-2">
+        <div class="border-t border-border mt-2 pt-2 flex items-center justify-between px-3 py-1.5">
+          <div class="flex items-center gap-2 min-w-0">
             {% if user.picture %}
-              <img src="{{ user.picture }}" alt="{{ user.name }}"
-                   class="w-6 h-6 rounded-full" referrerpolicy="no-referrer">
+              <img src="{{ user.picture }}" alt="{{ user.name }}" referrerpolicy="no-referrer" class="w-6 h-6 rounded-full">
             {% endif %}
-            <span class="text-xs text-slate-400">{{ user.name }}</span>
+            <span class="text-xs text-ink-3 truncate">{{ user.name }}</span>
           </div>
-          <a href="/logout" class="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900">Salir</a>
+          <a href="/logout" class="text-sm text-ink-2 hover:text-ink">Salir</a>
         </div>
       {% endif %}
     </div>
   </nav>
 
-  <main class="max-w-7xl mx-auto px-4 py-4 md:px-6 md:py-6">
+  <main class="max-w-7xl mx-auto px-4 py-5 md:px-6 md:py-7">
     {% block content %}{% endblock %}
   </main>
 
   <script>
     // Hamburger
-    const toggle = document.getElementById('nav-toggle');
-    const menu = document.getElementById('nav-menu');
-    const iconOpen = document.getElementById('icon-open');
-    const iconClose = document.getElementById('icon-close');
-    toggle.addEventListener('click', () => {
-      const isHidden = menu.classList.toggle('hidden');
-      iconOpen.classList.toggle('hidden', !isHidden);
-      iconClose.classList.toggle('hidden', isHidden);
-    });
+    (function () {
+      var toggle = document.getElementById('nav-toggle');
+      var menu = document.getElementById('nav-menu');
+      var iconOpen = document.getElementById('icon-open');
+      var iconClose = document.getElementById('icon-close');
+      toggle.addEventListener('click', function () {
+        var isHidden = menu.classList.toggle('hidden');
+        toggle.setAttribute('aria-expanded', String(!isHidden));
+        iconOpen.classList.toggle('hidden', !isHidden);
+        iconClose.classList.toggle('hidden', isHidden);
+      });
+    })();
 
-    // Dark mode
+    // Theme
     function toggleDark() {
-      const html = document.documentElement;
-      if (html.classList.contains('dark')) {
-        html.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-      } else {
-        html.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      }
+      var html = document.documentElement;
+      var dark = html.classList.toggle('dark');
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
     }
 
-    // HTMX row cleanup
-    window.cleanupRow = function(txId) {
-      ['share-form-' + txId, 'cat-form-' + txId, 'note-form-' + txId].forEach(formId => {
-        const all = document.querySelectorAll('#' + formId);
-        for (let i = 1; i < all.length; i++) all[i].remove();
+    // HTMX inline-form cleanup (collapse the expander rows after a swap)
+    window.cleanupRow = function (txId) {
+      ['share-form-' + txId, 'cat-form-' + txId, 'note-form-' + txId].forEach(function (formId) {
+        var all = document.querySelectorAll('#' + formId);
+        for (var i = 1; i < all.length; i++) all[i].remove();
         if (all[0]) all[0].classList.add('hidden');
       });
     };
   </script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

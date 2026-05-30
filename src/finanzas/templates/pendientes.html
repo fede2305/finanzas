@@ -1,25 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Pendientes · finanzas{% endblock %}
+{% block title %}Te deben · finanzas{% endblock %}
 {% block content %}
 
 <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
-  <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Te deben</h1>
+  <h1 class="text-2xl font-bold text-ink">Te deben</h1>
   <div class="flex items-center gap-4 flex-wrap text-sm">
-    <a href="?include_paid={{ 0 if include_paid else 1 }}" class="text-blue-600 hover:underline">
-      {% if include_paid %}solo pendientes{% else %}también mostrar lo ya pagado{% endif %}
+    <a href="?include_paid={{ 0 if include_paid else 1 }}" class="text-accent hover:underline">
+      {% if include_paid %}solo pendientes{% else %}mostrar también lo pagado{% endif %}
     </a>
     {% if groups %}
-      <a href="/pendientes.csv?include_paid={{ 1 if include_paid else 0 }}"
-         class="text-blue-600 hover:underline">⬇ exportar (CSV)</a>
+      <a href="/pendientes.csv?include_paid={{ 1 if include_paid else 0 }}" class="inline-flex items-center gap-1.5 text-accent hover:underline">
+        <i class="ph ph-download-simple"></i>CSV
+      </a>
     {% endif %}
   </div>
 </div>
 
 {% if groups %}
-<div class="mb-6 rounded-xl p-5 bg-gradient-to-br from-purple-50 to-rose-50 dark:from-slate-800 dark:to-slate-800 border border-purple-100 dark:border-slate-700">
-  <div class="flex items-baseline gap-3 flex-wrap">
-    <div class="text-3xl font-bold text-purple-800 dark:text-purple-300">{{ currency_ars(total_pending) }}</div>
-    <div class="text-sm text-purple-700 dark:text-purple-400">pendientes entre {{ groups|length }} persona{{ 's' if groups|length != 1 else '' }}</div>
+<div class="card mb-6 flex items-center gap-4">
+  <span class="chip badge-warn w-10 h-10 justify-center p-0 text-xl shrink-0"><i class="ph-fill ph-clock"></i></span>
+  <div>
+    <div class="text-3xl font-bold text-ink tnum">{{ currency_ars(total_pending) }}</div>
+    <div class="text-sm text-ink-2">pendientes entre {{ groups|length }} persona{{ 's' if groups|length != 1 else '' }}</div>
   </div>
 </div>
 
@@ -28,52 +30,49 @@
   <div class="card">
     <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
       <div>
-        <h2 class="text-lg font-semibold">{{ g.person_name }}</h2>
-        <div class="text-sm text-slate-500 mt-0.5 flex flex-wrap gap-x-3">
-          <span class="text-amber-700 dark:text-amber-400">⏳ <b>{{ currency_ars(g.total_owed_pending) }}</b></span>
+        <h2 class="text-lg font-semibold text-ink">{{ g.person_name }}</h2>
+        <div class="text-sm mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+          <span class="inline-flex items-center gap-1 text-warn-ink"><i class="ph ph-clock"></i><b class="tnum">{{ currency_ars(g.total_owed_pending) }}</b></span>
           {% if g.paid_count > 0 %}
-            <span class="text-emerald-700 dark:text-emerald-400">✓ ya pagó: {{ currency_ars(g.total_owed_paid) }}</span>
+            <span class="inline-flex items-center gap-1 text-pos-ink"><i class="ph ph-check-circle"></i>ya pagó {{ currency_ars(g.total_owed_paid) }}</span>
           {% endif %}
-          <span class="text-slate-400 dark:text-slate-500">{{ g.pending_count }} gasto{{ 's' if g.pending_count != 1 else '' }}</span>
+          <span class="text-ink-3 tnum">{{ g.pending_count }} gasto{{ 's' if g.pending_count != 1 else '' }}</span>
         </div>
       </div>
       <a href="/pendientes.csv?person={{ g.person_name | urlencode }}&include_paid={{ 1 if include_paid else 0 }}"
-         class="text-sm text-blue-600 hover:underline">⬇ CSV</a>
+         class="inline-flex items-center gap-1.5 text-sm text-accent hover:underline"><i class="ph ph-download-simple"></i>CSV</a>
     </div>
-    <table class="w-full text-sm">
-      <thead class="text-xs uppercase text-slate-500 border-b border-slate-200 dark:border-slate-700">
+    <table class="table">
+      <thead>
         <tr>
-          <th class="text-left py-2 font-medium hidden md:table-cell">Fecha</th>
-          <th class="text-left py-2 font-medium">Descripción</th>
-          <th class="text-left py-2 font-medium hidden md:table-cell">Cuenta</th>
-          <th class="text-right py-2 font-medium">Te debe</th>
+          <th class="hidden md:table-cell">Fecha</th>
+          <th>Descripción</th>
+          <th class="hidden md:table-cell">Cuenta</th>
+          <th class="text-right">Te debe</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {% for tx in g.txs %}
-        <tr id="part-row-{{ tx.id }}" class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">
-          <td class="py-2 text-slate-500 text-xs whitespace-nowrap hidden md:table-cell">{{ tx.posted_at[:10] }}</td>
-          <td class="py-2">
-            <div class="text-xs text-slate-400 md:hidden">{{ tx.posted_at[:10] }} · {{ tx.bank }} ···{{ tx.card_last4 }}</div>
-            <div class="break-words font-medium" title="{{ tx.description_raw }}">{{ tx.description_raw }}</div>
-            <div class="text-xs text-slate-400 dark:text-slate-500">de {% if tx.currency=='ARS' %}{{ currency_ars(tx.amount) }}{% else %}{{ currency_usd(tx.amount) }}{% endif %} en total</div>
+        <tr id="part-row-{{ tx.id }}" class="row-hover">
+          <td class="text-ink-2 text-xs whitespace-nowrap hidden md:table-cell tnum">{{ tx.posted_at[:10] }}</td>
+          <td>
+            <div class="text-xs text-ink-3 md:hidden">{{ tx.posted_at[:10] }} · {{ tx.bank }} ···{{ tx.card_last4 }}</div>
+            <div class="break-words font-medium text-ink" title="{{ tx.description_raw }}">{{ tx.description_raw }}</div>
+            <div class="text-xs text-ink-3 tnum">de {% if tx.currency=='ARS' %}{{ currency_ars(tx.amount) }}{% else %}{{ currency_usd(tx.amount) }}{% endif %} en total</div>
           </td>
-          <td class="py-2 text-xs text-slate-500 whitespace-nowrap hidden md:table-cell">{{ tx.bank }} ···{{ tx.card_last4 }}</td>
-          <td class="py-2 text-right font-medium whitespace-nowrap">
+          <td class="text-xs text-ink-2 whitespace-nowrap hidden md:table-cell">{{ tx.bank }} ···{{ tx.card_last4 }}</td>
+          <td class="text-right font-medium whitespace-nowrap tnum text-ink">
             {% if tx.currency == 'USD' %}{{ currency_usd(tx.amount_owed) }}{% else %}{{ currency_ars(tx.amount_owed) }}{% endif %}
           </td>
-          <td class="py-2 text-right whitespace-nowrap">
+          <td class="text-right whitespace-nowrap">
             <form method="post" action="/participant/{{ tx.id }}/toggle-paid" class="inline">
               {% if tx.paid_back %}
-                <button type="submit" class="text-xs text-emerald-700 dark:text-emerald-400 hover:underline">
-                  ✓ {{ tx.paid_back_at[:10] if tx.paid_back_at else '—' }} (deshacer)
+                <button type="submit" class="inline-flex items-center gap-1 text-xs text-pos-ink hover:underline">
+                  <i class="ph ph-check-circle"></i>{{ tx.paid_back_at[:10] if tx.paid_back_at else '' }} · deshacer
                 </button>
               {% else %}
-                <button type="submit"
-                        class="text-xs px-3 py-1 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900">
-                  marcar pagado
-                </button>
+                <button type="submit" class="toggle" data-on="warn"><i class="ph ph-check"></i>marcar pagado</button>
               {% endif %}
             </form>
           </td>
@@ -85,9 +84,10 @@
   {% endfor %}
 </div>
 {% else %}
-<div class="card text-center py-10">
-  <p class="text-emerald-600 text-lg font-medium">🎉 Nadie te debe nada</p>
-  <p class="text-slate-500 text-sm mt-2">Cuando marqués un gasto como compartido desde el dashboard, los nombres y montos van a aparecer acá.</p>
+<div class="card text-center py-12 flex flex-col items-center gap-2">
+  <i class="ph ph-check-circle text-4xl text-pos"></i>
+  <p class="text-ink text-lg font-medium">Nadie te debe nada</p>
+  <p class="text-ink-3 text-sm">Cuando marqués un gasto como compartido desde el dashboard, los nombres y montos aparecen acá.</p>
 </div>
 {% endif %}
 

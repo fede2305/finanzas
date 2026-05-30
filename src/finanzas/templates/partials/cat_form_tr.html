@@ -4,37 +4,34 @@
    - colspan: nro de columnas (default 6) #}
 {% set _cs = colspan|default(6) %}
 {% if tree is defined %}
-<tr id="cat-form-{{ it.id }}" class="hidden bg-blue-50 dark:bg-blue-950/40">
-  <td colspan="{{ _cs }}" class="py-3 px-4">
+<tr id="cat-form-{{ it.id }}" class="hidden">
+  <td colspan="{{ _cs }}" class="bg-surface-hover">
     <form hx-post="/tx/{{ it.id }}/category"
           hx-target="#tx-row-{{ it.id }}"
           hx-swap="outerHTML"
           hx-on::after-request="window.cleanupRow && window.cleanupRow({{ it.id }})"
-          class="flex items-center gap-2 flex-wrap text-sm">
-      <span class="text-xs text-slate-600 dark:text-slate-300 font-medium">Cambiar a:</span>
-      <select name="category_id" required
-              class="text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 bg-white dark:bg-slate-800 dark:text-slate-100"
-              onchange="updateCatSubs{{ it.id }}(this)">
-        <option value="">— Categoría —</option>
+          class="flex items-center gap-2 flex-wrap text-sm px-4 py-3.5">
+      <span class="inline-flex items-center gap-1 text-xs text-ink-2 font-medium"><i class="ph ph-tag"></i>Cambiar a</span>
+      <select name="category_id" required class="field w-auto" onchange="updateCatSubs{{ it.id }}(this)">
+        <option value="">Categoría</option>
         {% for cat in tree %}
           {% if cat.name != 'Sin categoría' %}
             <option value="{{ cat.id }}" data-subs='{{ cat.subcategories | tojson }}'>{{ cat.name }}</option>
           {% endif %}
         {% endfor %}
       </select>
-      <select id="cat-sub-{{ it.id }}" name="subcategory_id"
-              class="text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 bg-white dark:bg-slate-800 dark:text-slate-100">
-        <option value="">—</option>
+      <select id="cat-sub-{{ it.id }}" name="subcategory_id" class="field w-auto">
+        <option value="">Subcategoría</option>
       </select>
-      <label class="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 ml-2">
-        <input type="checkbox" name="remember" value="1" class="rounded">
+      <label class="inline-flex items-center gap-1.5 text-xs text-ink-2 ml-1">
+        <input type="checkbox" name="remember" value="1">
         recordar para este merchant
       </label>
-      <div class="ml-auto flex gap-2">
+      <div class="ml-auto flex items-center gap-3">
         <button type="button"
-                class="text-xs text-slate-400 hover:underline"
+                class="text-xs text-ink-3 hover:text-ink-2"
                 onclick="document.getElementById('cat-form-{{ it.id }}').classList.add('hidden')">cancelar</button>
-        <button type="submit" class="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">guardar</button>
+        <button type="submit" class="btn btn-primary text-xs px-3 py-1.5">Guardar</button>
       </div>
     </form>
     <script>
@@ -42,7 +39,7 @@
         const opt = select.options[select.selectedIndex];
         const subs = JSON.parse(opt.getAttribute("data-subs") || "[]");
         const target = document.getElementById('cat-sub-{{ it.id }}');
-        target.innerHTML = '<option value="">—</option>' +
+        target.innerHTML = '<option value="">Subcategoría</option>' +
           subs.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
       };
     </script>

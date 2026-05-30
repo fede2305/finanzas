@@ -7,52 +7,42 @@
 {% set is_cuotas = it.installment_total and it.installment_total > 1 %}
 {% set total_purchase = it.amount * it.installment_total if is_cuotas else 0 %}
 {% set has_note = it.notes and it.notes.strip() %}
-<tr id="tx-row-{{ it.id }}" class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 align-top">
-  <td class="py-2 pr-2">
-    <div class="text-xs text-slate-400 dark:text-slate-500">{{ it.posted_at[:10] }}{% if it.subcategory %} · {{ it.subcategory }}{% endif %}{% if it.card_last4 %} · ···{{ it.card_last4 }}{% endif %}</div>
-    <div class="truncate text-slate-800 dark:text-slate-100" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
+<tr id="tx-row-{{ it.id }}" class="row-hover">
+  <td class="pr-2">
+    <div class="text-xs text-ink-3">{{ it.posted_at[:10] }}{% if it.subcategory %} · {{ it.subcategory }}{% endif %}{% if it.card_last4 %} · ···{{ it.card_last4 }}{% endif %}</div>
+    <div class="truncate text-ink" title="{{ it.description_raw }}">{{ it.description_raw }}</div>
     {% if is_cuotas %}
-      <div class="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-        📆 cuota {{ it.installment_current }}/{{ it.installment_total }}
-        · total: {% if it.currency == 'USD' %}{{ currency_usd(total_purchase) }}{% else %}{{ currency_ars(total_purchase) }}{% endif %}
+      <div class="inline-flex items-center gap-1 text-xs text-warn-ink mt-0.5 tnum">
+        <i class="ph ph-calendar-dots"></i>cuota {{ it.installment_current }}/{{ it.installment_total }}
+        · total {% if it.currency == 'USD' %}{{ currency_usd(total_purchase) }}{% else %}{{ currency_ars(total_purchase) }}{% endif %}
       </div>
     {% endif %}
     {% if has_note %}
-      <div class="text-xs text-slate-600 dark:text-slate-300 italic mt-0.5 break-words">📝 {{ it.notes }}</div>
+      <div class="text-xs text-ink-2 italic mt-0.5 break-words flex items-start gap-1"><i class="ph ph-note text-ink-3 mt-0.5"></i>{{ it.notes }}</div>
     {% endif %}
     {% if has_participants %}
       <div class="mt-1.5 flex flex-wrap gap-1">
         {% for p in participants %}
           <form method="post" action="/participant/{{ p.id }}/toggle-paid"
-                hx-post="/participant/{{ p.id }}/toggle-paid"
-                hx-target="#tx-row-{{ it.id }}"
-                hx-swap="outerHTML"
-                class="inline">
-            <button type="submit"
-                    class="text-xs px-2 py-0.5 rounded-full border transition
-                           {% if p.paid_back %}bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300{% else %}bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300{% endif %}">
-              {% if p.paid_back %}✓{% else %}⏳{% endif %}
-              {{ p.person_name }}
-              <span class="text-[10px] opacity-70">{% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}</span>
+                hx-post="/participant/{{ p.id }}/toggle-paid" hx-target="#tx-row-{{ it.id }}" hx-swap="outerHTML" class="inline">
+            <button type="submit" class="toggle" data-on="{{ 'pos' if p.paid_back else 'warn' }}">
+              <i class="ph {{ 'ph-check' if p.paid_back else 'ph-clock' }}"></i>{{ p.person_name }}
+              <span class="opacity-70 tnum">{% if it.currency == 'USD' %}{{ currency_usd(p.amount_owed) }}{% else %}{{ currency_ars(p.amount_owed) }}{% endif %}</span>
             </button>
           </form>
         {% endfor %}
       </div>
     {% endif %}
   </td>
-  <td class="py-2 text-right font-medium whitespace-nowrap text-slate-800 dark:text-slate-100">
-    {% if it.currency == 'USD' %}
-      {{ currency_usd(it.amount) }}
-    {% else %}
-      {{ currency_ars(it.amount) }}
-    {% endif %}
+  <td class="text-right font-medium whitespace-nowrap text-ink tnum">
+    {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}
     {% if has_participants %}
-      <div class="text-xs {% if zero_share %}text-emerald-600 dark:text-emerald-400{% else %}text-purple-600 dark:text-purple-300{% endif %} font-normal">
+      <div class="text-xs {% if zero_share %}text-pos-ink{% else %}text-accent-soft-ink{% endif %} font-normal">
         tu: {% if it.currency == 'USD' %}{{ currency_usd(my_amount) }}{% else %}{{ currency_ars(my_amount) }}{% endif %}{% if zero_share %} (no pagás){% endif %}
       </div>
     {% endif %}
   </td>
-  <td class="py-2 pl-1">
+  <td class="pl-1">
     {% include 'partials/tx_actions.html' %}
   </td>
 </tr>

@@ -5,89 +5,80 @@
 {% set _participants = it.participants or [] %}
 {% set _owed = _participants|sum(attribute='amount_owed') %}
 {% set _my = it.amount - _owed %}
-<tr id="share-form-{{ it.id }}" class="hidden bg-purple-50 dark:bg-purple-950/40">
-  <td colspan="{{ _cs }}" class="py-3 px-4">
+<tr id="share-form-{{ it.id }}" class="hidden">
+  <td colspan="{{ _cs }}" class="bg-surface-hover">
     <form hx-post="/tx/{{ it.id }}/share"
           hx-target="#tx-row-{{ it.id }}"
           hx-swap="outerHTML"
           hx-on::after-request="window.cleanupRow && window.cleanupRow({{ it.id }})"
-          class="space-y-2 text-sm">
+          class="space-y-2.5 text-sm px-4 py-3.5">
       <div class="flex items-center gap-2 flex-wrap text-xs">
-        <span class="font-medium text-slate-700 dark:text-slate-200">Dividir entre:</span>
+        <span class="font-medium text-ink-2">Dividir entre</span>
         {% for n in [2,3,4,5,6,7,8] %}
           <button type="button"
-                  class="px-2 py-0.5 text-xs rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 dark:text-slate-200"
+                  class="w-7 h-7 rounded-md border border-border bg-surface text-ink hover:border-accent hover:text-accent transition-colors tnum"
                   onclick="splitFor{{ it.id }}({{ n }})">{{ n }}</button>
         {% endfor %}
-        <span class="text-slate-500 dark:text-slate-400">personas</span>
-        <label class="inline-flex items-center gap-1 ml-3 cursor-pointer select-none">
-          <input type="checkbox" id="include-me-{{ it.id }}" checked
-                 onchange="splitFor{{ it.id }}()"
-                 class="rounded">
-          <span class="text-slate-700 dark:text-slate-200 font-medium">me incluyo yo</span>
+        <span class="text-ink-3">personas</span>
+        <label class="inline-flex items-center gap-1.5 ml-2 cursor-pointer select-none">
+          <input type="checkbox" id="include-me-{{ it.id }}" checked onchange="splitFor{{ it.id }}()">
+          <span class="text-ink-2 font-medium">me incluyo yo</span>
         </label>
       </div>
       {% if frequent_people is defined and frequent_people %}
-      <div class="flex items-center gap-1 flex-wrap text-xs">
-        <span class="text-slate-500 dark:text-slate-400">Personas frecuentes:</span>
+      <div class="flex items-center gap-1.5 flex-wrap text-xs">
+        <span class="text-ink-3">Frecuentes:</span>
         {% for name in frequent_people %}
           <button type="button"
-                  class="px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200"
-                  onclick="addPersonByName{{ it.id }}('{{ name | e }}')">+ {{ name }}</button>
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-border bg-surface text-ink-2 hover:border-accent hover:text-accent transition-colors"
+                  onclick="addPersonByName{{ it.id }}('{{ name | e }}')"><i class="ph ph-plus text-[10px]"></i>{{ name }}</button>
         {% endfor %}
       </div>
       {% endif %}
       <div id="participants-{{ it.id }}" class="space-y-1.5">
         {# Fila Yo (siempre visible, auto-calculada — no se envía al backend) #}
-        <div class="self-row flex items-center gap-2 bg-blue-50 dark:bg-blue-950/50 rounded px-2 py-1.5 border-l-4 border-blue-400 dark:border-blue-600">
-          <span class="flex-1 text-sm font-semibold text-blue-700 dark:text-blue-300">Yo</span>
-          <input type="text" id="self-amount-{{ it.id }}"
-                 value="{{ '%.2f' % _my }}"
-                 class="w-28 text-sm rounded border border-blue-200 dark:border-blue-700 px-2 py-1 bg-white dark:bg-slate-800 text-blue-800 dark:text-blue-300 font-medium"
+        <div class="self-row flex items-center gap-2 bg-accent-soft rounded-md px-2.5 py-1.5">
+          <span class="flex-1 text-sm font-semibold text-accent-soft-ink">Yo</span>
+          <input type="text" id="self-amount-{{ it.id }}" value="{{ '%.2f' % _my }}"
+                 class="w-28 text-sm rounded-md border border-transparent bg-surface/60 px-2 py-1 text-accent-soft-ink font-medium tnum"
                  readonly tabindex="-1">
-          <span class="text-xs text-blue-600 dark:text-blue-400 italic whitespace-nowrap">tu parte (auto)</span>
-          <span class="w-4"></span>
+          <span class="text-xs text-accent-soft-ink italic whitespace-nowrap">tu parte (auto)</span>
+          <span class="w-5"></span>
         </div>
         {% for p in _participants %}
           <div class="flex items-center gap-2 part-row">
-            <input type="text" name="participant_name" value="{{ p.person_name }}"
-                   list="frequent-people-{{ it.id }}"
-                   class="flex-1 text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 dark:bg-slate-800 dark:text-slate-100" placeholder="Nombre">
-            <input type="number" step="0.01" name="participant_amount"
-                   value="{{ '%.2f' % p.amount_owed }}"
-                   oninput="updateSelf{{ it.id }}()"
-                   class="w-28 text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 dark:bg-slate-800 dark:text-slate-100" placeholder="0.00">
-            <label class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
+            <input type="text" name="participant_name" value="{{ p.person_name }}" list="frequent-people-{{ it.id }}"
+                   class="field flex-1" placeholder="Nombre">
+            <input type="number" step="0.01" name="participant_amount" value="{{ '%.2f' % p.amount_owed }}"
+                   oninput="updateSelf{{ it.id }}()" class="field w-28 tnum" placeholder="0.00">
+            <label class="inline-flex items-center gap-1 text-xs text-ink-2 whitespace-nowrap">
               <input type="hidden" name="participant_paid" value="0">
-              <input type="checkbox" name="participant_paid"
-                     value="1" {% if p.paid_back %}checked{% endif %}
-                     class="rounded" onchange="this.previousElementSibling.value=this.checked?'1':'0'">
+              <input type="checkbox" name="participant_paid" value="1" {% if p.paid_back %}checked{% endif %}
+                     onchange="this.previousElementSibling.value=this.checked?'1':'0'">
               ya pagó
             </label>
             <button type="button" onclick="removeParticipant{{ it.id }}(this)"
-                    class="text-rose-500 text-xs hover:underline">✕</button>
+                    class="icon-btn w-6 h-6 text-ink-3 hover:text-neg"><i class="ph ph-x text-sm"></i></button>
           </div>
         {% endfor %}
       </div>
       {% if frequent_people is defined and frequent_people %}
         <datalist id="frequent-people-{{ it.id }}">
-          {% for name in frequent_people %}
-            <option value="{{ name }}">
-          {% endfor %}
+          {% for name in frequent_people %}<option value="{{ name }}">{% endfor %}
         </datalist>
       {% endif %}
       <div class="flex items-center gap-3 flex-wrap pt-1">
         <button type="button" onclick="addParticipant{{ it.id }}()"
-                class="text-xs text-blue-600 hover:underline">+ agregar persona</button>
-        <span class="text-xs text-slate-400">Total tx: {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}</span>
-        <div class="ml-auto flex gap-2">
+                class="inline-flex items-center gap-1 text-xs text-accent hover:underline"><i class="ph ph-plus"></i>agregar persona</button>
+        <span class="text-xs text-ink-3 tnum">Total tx: {% if it.currency == 'USD' %}{{ currency_usd(it.amount) }}{% else %}{{ currency_ars(it.amount) }}{% endif %}</span>
+        <div class="ml-auto flex items-center gap-3">
           <button type="button"
                   onclick="document.getElementById('participants-{{ it.id }}').querySelectorAll('.part-row').forEach(r=>r.remove()); updateSelf{{ it.id }}(); document.getElementById('share-form-{{ it.id }}').querySelector('form').requestSubmit()"
-                  class="text-xs text-slate-500 dark:text-slate-400 hover:underline">vaciar (todo mío)</button>
+                  class="text-xs text-ink-2 hover:text-ink hover:underline">vaciar (todo mío)</button>
           <button type="button"
                   onclick="document.getElementById('share-form-{{ it.id }}').classList.add('hidden')"
-                  class="text-xs text-slate-400 hover:underline">cancelar</button>
-          <button type="submit" class="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">guardar</button>
+                  class="text-xs text-ink-3 hover:text-ink-2">cancelar</button>
+          <button type="submit" class="btn btn-primary text-xs px-3 py-1.5">Guardar</button>
         </div>
       </div>
     </form>
@@ -100,19 +91,17 @@
           const html = `
             <div class="flex items-center gap-2 part-row">
               <input type="text" name="participant_name" value="${name || ''}"
-                     list="frequent-people-{{ it.id }}"
-                     class="flex-1 text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 dark:bg-slate-800 dark:text-slate-100" placeholder="Nombre">
+                     list="frequent-people-{{ it.id }}" class="field flex-1" placeholder="Nombre">
               <input type="number" step="0.01" name="participant_amount" value="${amount.toFixed(2)}"
-                     oninput="updateSelf{{ it.id }}()"
-                     class="w-28 text-sm rounded border border-slate-300 dark:border-slate-600 px-2 py-1 dark:bg-slate-800 dark:text-slate-100" placeholder="0.00">
-              <label class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                     oninput="updateSelf{{ it.id }}()" class="field w-28 tnum" placeholder="0.00">
+              <label class="inline-flex items-center gap-1 text-xs text-ink-2 whitespace-nowrap">
                 <input type="hidden" name="participant_paid" value="0">
                 <input type="checkbox" name="participant_paid" value="1" ${paid ? 'checked' : ''}
-                       class="rounded" onchange="this.previousElementSibling.value=this.checked?'1':'0'">
+                       onchange="this.previousElementSibling.value=this.checked?'1':'0'">
                 ya pagó
               </label>
               <button type="button" onclick="removeParticipant{{ it.id }}(this)"
-                      class="text-rose-500 text-xs hover:underline">✕</button>
+                      class="icon-btn w-6 h-6 text-ink-3 hover:text-neg"><i class="ph ph-x text-sm"></i></button>
             </div>`;
           const tpl = document.createElement('template');
           tpl.innerHTML = html.trim();
@@ -125,7 +114,6 @@
         }
 
         window.updateSelf{{ it.id }} = function() {
-          // Yo = total - sum(otros). Solo informativo (no se envía).
           let sum = 0;
           container.querySelectorAll('.part-row input[name="participant_amount"]').forEach(inp => {
             sum += parseFloat(inp.value) || 0;
@@ -133,16 +121,12 @@
           const my = txTotal - sum;
           const self = document.getElementById('self-amount-{{ it.id }}');
           if (self) self.value = my.toFixed(2);
-          // Si no pago nada (modo "solo amigos"), ocultar la fila Yo.
-          // Tolerancia de 50 centavos para absorber redondeos cuando dividimos
-          // total/N con N que no divide exacto (ej. 31667/3 = 10555.666...).
           const selfRow = container.querySelector('.self-row');
           if (selfRow) selfRow.style.display = (Math.abs(my) < 0.5) ? 'none' : '';
         };
 
         window.addParticipant{{ it.id }} = function(name) {
           const existing = container.querySelectorAll('.part-row').length;
-          // includeMe checkbox define si yo cuento en la división
           const div = includeMe() ? (existing + 1 + 1) : (existing + 1);
           const per = txTotal / div;
           container.querySelectorAll('.part-row input[name="participant_amount"]').forEach(inp => {
@@ -152,7 +136,6 @@
           window.updateSelf{{ it.id }}();
         };
 
-        // Atajo: agrega una persona con nombre pre-cargado (desde los chips de frecuentes)
         window.addPersonByName{{ it.id }} = function(name) {
           window.addParticipant{{ it.id }}(name);
         };
@@ -160,10 +143,7 @@
         window.removeParticipant{{ it.id }} = function(btn) {
           btn.closest('.part-row').remove();
           const left = container.querySelectorAll('.part-row');
-          if (left.length === 0) {
-            window.updateSelf{{ it.id }}();
-            return;
-          }
+          if (left.length === 0) { window.updateSelf{{ it.id }}(); return; }
           const div = includeMe() ? (left.length + 1) : left.length;
           const per = txTotal / div;
           left.forEach(r => {
@@ -173,8 +153,6 @@
           window.updateSelf{{ it.id }}();
         };
 
-        // splitFor(n): si n viene → arma split entre N personas, includeMe define si yo cuento.
-        // Si n no viene (se invoca desde el onchange del checkbox) → recomputa con el último N.
         window.splitFor{{ it.id }} = function(n) {
           if (n !== undefined) {
             container.dataset.splitN = n;
